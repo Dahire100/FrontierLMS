@@ -6,14 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/backend/server.js"
+      "destination": "/api"
     }
-  ],
-  "functions": {
-    "backend/server.js": {
-      "maxDuration": 15,
-      "memory": 1024
-    }
-  },
-  "crons": []
+  ]
 }
