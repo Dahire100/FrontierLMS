@@ -2,5 +2,18 @@
   "buildCommand": "cd frontend && npm run build",
   "installCommand": "npm run install:all",
   "framework": "nextjs",
-  "outputDirectory": "frontend/.next"
+  "outputDirectory": "frontend/.next",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/backend/server.js"
+    }
+  ],
+  "functions": {
+    "backend/server.js": {
+      "maxDuration": 15,
+      "memory": 1024
+    }
+  },
+  "crons": []
 }
