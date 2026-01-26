@@ -1,15 +1,8 @@
 {
-  "buildCommand": "cd frontend && npm run build",
-  "framework": "nextjs",
-  "outputDirectory": "frontend/.next",
   "rewrites": [
     {
       "source": "/api/:path*",
       "destination": "/backend/server.js"
-    },
-    {
-      "source": "/uploads/:path*",
-      "destination": "/backend/uploads/:path*"
     }
   ]
 }
