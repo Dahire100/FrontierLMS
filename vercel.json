@@ -1,12 +1,12 @@
 {
-  "buildCommand": "cd frontend && npm run build",
-  "installCommand": "npm run install:all",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "cd frontend && pnpm run build",
   "framework": "nextjs",
   "outputDirectory": "frontend/.next",
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api"
-    }
+  "cacheDirectories": [
+    "node_modules",
+    "frontend/node_modules",
+    "backend/node_modules",
+    "frontend/.next/cache"
   ]
 }
