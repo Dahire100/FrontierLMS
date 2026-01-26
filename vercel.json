@@ -1,3 +1,16 @@
-"scripts": {
-  "build": "next build"
+{
+  "buildCommand": "cd frontend && npm run build",
+  "installCommand": "npm run install:all",
+  "framework": "nextjs",
+  "outputDirectory": "frontend/.next",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/backend/server.js"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "/backend/uploads/:path*"
+    }
+  ]
 }
