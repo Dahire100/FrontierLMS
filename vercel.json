@@ -15,7 +15,7 @@
   ],
   "functions": {
     "backend/server.js": {
-      "runtime": "nodejs22.x",
+      "runtime": "nodejs20.x",
       "maxDuration": 15
     }
   }
