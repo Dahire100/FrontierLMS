@@ -1,7 +1,7 @@
 "use client"
 
 import { API_URL } from "@/lib/api-config"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -19,10 +19,36 @@ export default function AdminLogin() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
+  // Captcha State
+  const [captcha, setCaptcha] = useState("")
+  const [userCaptchaInput, setUserCaptchaInput] = useState("")
+
+  const generateCaptcha = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&";
+    let result = "";
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCaptcha(result);
+    setUserCaptchaInput("");
+  }
+
+  // Generate captcha on mount
+  useEffect(() => {
+    generateCaptcha();
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setSuccess("")
+
+    if (userCaptchaInput !== captcha) {
+      setError("Invalid Captcha. Please try again.");
+      generateCaptcha();
+      return;
+    }
+
     setIsLoading(true)
 
     try {
@@ -152,6 +178,32 @@ export default function AdminLogin() {
                       )}
                     </button>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Security Check</Label>
+                  <div className="flex gap-2">
+                    <div
+                      className="flex-1 bg-orange-50 border border-orange-200 rounded-md flex items-center justify-center font-mono text-lg font-bold tracking-widest select-none relative overflow-hidden cursor-pointer"
+                      onClick={generateCaptcha}
+                      style={{ height: '48px' }}
+                      title="Click to regenerate"
+                    >
+                      <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000)', backgroundSize: '10px 10px' }}></div>
+                      <span className="relative z-10 text-orange-800 transform -skew-x-12">{captcha}</span>
+                    </div>
+                    <Button type="button" variant="outline" onClick={generateCaptcha} className="h-12 w-12 p-0 border-orange-200 hover:bg-orange-50 text-orange-600">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg>
+                    </Button>
+                  </div>
+                  <Input
+                    type="text"
+                    placeholder="Enter characters"
+                    value={userCaptchaInput}
+                    onChange={(e) => setUserCaptchaInput(e.target.value)}
+                    required
+                    className="h-12"
+                  />
                 </div>
 
                 <Button

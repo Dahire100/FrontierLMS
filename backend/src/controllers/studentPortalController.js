@@ -23,6 +23,11 @@ const { HostelAllocation } = require('../models/Hostel');
 const StudentDocument = require('../models/StudentDocument');
 const StudyMaterial = require('../models/StudyMaterial');
 const HostelOutpass = require('../models/HostelOutpass');
+const ExamApplication = require('../models/ExamApplication');
+const AdmitCard = require('../models/AdmitCard');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
 
 // Get student dashboard
 exports.getStudentDashboard = async (req, res) => {
@@ -1503,4 +1508,282 @@ exports.updateStudentProfilePicture = async (req, res) => {
   }
 };
 
+
+// Download attendance report
+exports.downloadAttendanceReport = async (req, res) => {
+  try {
+    const { email, schoolId } = req.user;
+    const { startDate, endDate } = req.query;
+
+    const student = await Student.findOne({ email, schoolId });
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+
+    const query = { schoolId, studentId: student._id };
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = new Date(startDate);
+      if (endDate) query.date.$lte = new Date(endDate);
+    }
+
+    const attendanceRecords = await Attendance.find(query).sort({ date: 1 });
+
+    // Create PDF
+    const doc = new PDFDocument();
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Attendance_Report_${student.rollNumber}.pdf`);
+
+    doc.pipe(res);
+
+    // Header
+    doc.fontSize(20).text('Attendance Report', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Student: ${student.firstName} ${student.lastName}`);
+    doc.text(`Roll No: ${student.rollNumber}`);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`);
+    doc.moveDown();
+
+    // Table Header
+    const tableTop = 200;
+    doc.font('Helvetica-Bold');
+    doc.text('Date', 50, tableTop);
+    doc.text('Status', 200, tableTop);
+    doc.text('Remarks', 350, tableTop);
+
+    // Rows
+    doc.font('Helvetica');
+    let y = tableTop + 25;
+    attendanceRecords.forEach(record => {
+      if (y > 700) {
+        doc.addPage();
+        y = 50;
+      }
+      doc.text(new Date(record.date).toLocaleDateString(), 50, y);
+      doc.text(record.status, 200, y);
+      doc.text(record.remarks || '-', 350, y);
+      y += 20;
+    });
+
+    // Summary
+    doc.addPage();
+    const present = attendanceRecords.filter(r => r.status === 'present').length;
+    const total = attendanceRecords.length;
+    const percentage = total ? ((present / total) * 100).toFixed(1) : 0;
+
+    doc.fontSize(16).text('Summary', { underline: true });
+    doc.moveDown();
+    doc.fontSize(12).text(`Total Days: ${total}`);
+    doc.text(`Present Days: ${present}`);
+    doc.text(`Attendance Percentage: ${percentage}%`);
+
+    doc.end();
+
+  } catch (err) {
+    console.error('Error generating attendance report:', err);
+    // If response hasn't started, send json
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: 'Failed to generate report' });
+    } else {
+      res.end();
+    }
+  }
+};
+
+// EXAM APPLICATIONS & ADMIT CARDS
+
+// Get open exam applications
+exports.getExamApplications = async (req, res) => {
+  try {
+    const { email, schoolId } = req.user;
+    const student = await Student.findOne({ email, schoolId });
+    if (!student) return res.status(404).json({ success: false });
+
+    // Assuming we want exams that are in the future
+    const studentClassDoc = await Class.findOne({ schoolId, name: student.class, section: student.section });
+    if (!studentClassDoc) return res.json({ success: true, data: [] });
+
+    // Find future exams for this class
+    const exams = await Exam.find({
+      schoolId,
+      classId: studentClassDoc._id,
+      examDate: { $gt: new Date() }
+    });
+
+    // Find existing applications
+    const applications = await ExamApplication.find({
+      studentId: student._id,
+      examId: { $in: exams.map(e => e._id) }
+    });
+
+    // Map status
+    const result = exams.map(exam => {
+      const app = applications.find(a => a.examId.toString() === exam._id.toString());
+      return {
+        _id: exam._id,
+        name: exam.name,
+        examDate: exam.examDate,
+        applicationStatus: app ? app.status : 'open', // open means not applied yet
+        applicationId: app ? app._id : null
+      };
+    });
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Failed to fetch exam applications' });
+  }
+};
+
+// Submit exam application
+exports.submitExamApplication = async (req, res) => {
+  try {
+    const { email, schoolId } = req.user;
+    const { examId, selectedSubjects, examFee } = req.body;
+
+    const student = await Student.findOne({ email, schoolId });
+
+    // Check if already applied
+    const existing = await ExamApplication.findOne({ studentId: student._id, examId });
+    if (existing) {
+      return res.status(400).json({ success: false, error: 'Already applied' });
+    }
+
+    const application = new ExamApplication({
+      studentId: student._id,
+      examId: examId,
+      schoolId,
+      status: 'pending', // Default status
+      selectedSubjects: selectedSubjects || [],
+      examFee: examFee || 0,
+      paymentStatus: 'pending' // Initial status
+    });
+
+    await application.save();
+
+    // Ideally, this should trigger notification to admin
+
+    res.json({ success: true, message: 'Application submitted successfully', data: application });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Failed to submit application' });
+  }
+};
+
+// Get admit cards
+exports.getAdmitCards = async (req, res) => {
+  try {
+    const { email, schoolId } = req.user;
+    const student = await Student.findOne({ email, schoolId });
+
+    // Fetch generated admit cards
+    const admitCards = await AdmitCard.find({
+      studentId: student._id,
+      schoolId
+    }).populate('examId', 'name examDate startTime duration');
+
+    res.json({ success: true, data: admitCards });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Failed to fetch admit cards' });
+  }
+};
+
+// Download admit card
+exports.downloadAdmitCard = async (req, res) => {
+  try {
+    const { id } = req.params; // Admit Card ID
+    // Logic to generate PDF for admit card
+
+    const admitCard = await AdmitCard.findById(id)
+      .populate('studentId', 'firstName lastName rollNumber class section parentName')
+      .populate('examId', 'name examDate startTime duration endTime')
+      .populate('schoolId', 'name address');
+
+    if (!admitCard) return res.status(404).json({ success: false, error: 'Admit card not found' });
+
+    // Fetch related application for fee info if needed, though typically fees are cleared before admit card is generated
+    const application = await ExamApplication.findOne({
+      studentId: admitCard.studentId._id,
+      examId: admitCard.examId._id
+    });
+
+    const doc = new PDFDocument();
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=AdmitCard_${admitCard.studentId.rollNumber}.pdf`);
+
+    doc.pipe(res);
+
+    // School Name & Header
+    doc.fontSize(20).text(admitCard.schoolId.name, { align: 'center' });
+    doc.fontSize(10).text(admitCard.schoolId.address || '', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(16).text('ADMIT CARD', { align: 'center', underline: true });
+    doc.moveDown();
+
+    // Student Info Panel
+    const leftX = 50;
+    const rightX = 300;
+    let y = doc.y;
+
+    doc.fontSize(12).font('Helvetica-Bold').text('Student Information', leftX, y);
+    y += 20;
+    doc.font('Helvetica').text(`Name: ${admitCard.studentId.firstName} ${admitCard.studentId.lastName}`, leftX, y);
+    doc.text(`Roll Number: ${admitCard.studentId.rollNumber}`, rightX, y);
+    y += 20;
+    doc.text(`Class: ${admitCard.studentId.class} - ${admitCard.studentId.section}`, leftX, y);
+    doc.text(`Parent: ${admitCard.studentId.parentName || 'N/A'}`, rightX, y);
+    y += 20;
+
+    doc.font('Helvetica-Bold').text('Exam Details', leftX, y += 20);
+    y += 20;
+    doc.font('Helvetica').text(`Exam: ${admitCard.examId.name}`, leftX, y);
+    doc.text(`Date: ${new Date(admitCard.examId.examDate).toLocaleDateString()}`, rightX, y);
+    y += 20;
+    doc.text(`Time: ${admitCard.examId.startTime || '10:00 AM'} - ${admitCard.examId.endTime || '01:00 PM'}`, leftX, y);
+    doc.text(`Duration: ${admitCard.examId.duration || '3 Hours'}`, rightX, y);
+    y += 20;
+    doc.text(`Center: ${admitCard.examCenter || 'Main Examination Hall'}`, leftX, y);
+    doc.text(`Seat No: ${admitCard.seatNumber || 'Pending'}`, rightX, y);
+
+    // Fee Status
+    y += 40;
+    doc.font('Helvetica-Bold').text('Fee Status:', leftX, y);
+    const feeStatus = application ? application.paymentStatus : 'Cleared';
+    doc.fillColor(feeStatus === 'completed' || feeStatus === 'Cleared' ? 'green' : 'red')
+      .text(feeStatus.toUpperCase(), leftX + 80, y);
+    doc.fillColor('black');
+
+    // Subjects List
+    if (application && application.selectedSubjects && application.selectedSubjects.length > 0) {
+      y += 40;
+      doc.font('Helvetica-Bold').text('Registered Subjects:', leftX, y);
+      y += 20;
+      doc.font('Helvetica');
+      application.selectedSubjects.forEach(sub => {
+        doc.text(`• ${sub}`, leftX + 20, y);
+        y += 15;
+      });
+    }
+
+    doc.moveDown(2);
+    doc.fontSize(10).font('Helvetica-Oblique').text('IMPORTANT INSTRUCTIONS:', leftX, doc.y);
+    doc.text('1. Candidates must bring this Admit Card and a valid Photo ID to the examination hall.', leftX, doc.y + 15);
+    doc.text('2. Review the subjects above. Report discrepancies immediately.', leftX, doc.y + 15);
+    doc.text('3. Electronic devices are strictly prohibited.', leftX, doc.y + 15);
+
+    doc.end();
+
+  } catch (err) {
+    console.error(err);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: 'Failed to download admit card' });
+    }
+  }
+};
+
 module.exports = exports;
+

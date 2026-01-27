@@ -18,7 +18,6 @@ const studentProgressSchema = new mongoose.Schema({
   },
   term: {
     type: String,
-    enum: ['term1', 'term2', 'term3', 'annual'],
     required: true
   },
   subjects: [{

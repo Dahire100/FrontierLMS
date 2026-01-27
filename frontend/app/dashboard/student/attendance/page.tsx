@@ -8,7 +8,8 @@ import { ProtectedRoute } from "@/components/protected-route"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, XCircle, Clock, Calendar as CalendarIcon, AlertCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { CheckCircle, XCircle, Clock, Calendar as CalendarIcon, AlertCircle, Printer, Download } from "lucide-react"
 import { toast } from "sonner"
 
 export default function StudentAttendance() {
@@ -120,6 +121,31 @@ export default function StudentAttendance() {
         holiday: { color: 'white', backgroundColor: '#8b5cf6' } // violet-500
     }
 
+
+    const handleDownload = async () => {
+        try {
+            toast.info("Generating report...");
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/api/student/attendance/download`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Download failed');
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Attendance_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toast.success("Download started");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to download report");
+        }
+    }
+
     if (loading) {
         return <div className="p-8 text-center">Loading attendance...</div>
     }
@@ -127,7 +153,26 @@ export default function StudentAttendance() {
     return (
         <ProtectedRoute allowedRoles={["student"]}>
             <DashboardLayout title="Attendance">
-                <div className="space-y-8 p-1">
+                <div className="space-y-6 p-1">
+                    {/* Header with Actions */}
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <h2 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+                                My Attendance
+                            </h2>
+                            <p className="text-muted-foreground mt-1">
+                                Track your daily attendance and detailed log
+                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => window.print()}>
+                                <Printer className="mr-2 h-4 w-4" /> Print
+                            </Button>
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={handleDownload}>
+                                <Download className="mr-2 h-4 w-4" /> Download Report
+                            </Button>
+                        </div>
+                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {stats.map((stat, i) => (

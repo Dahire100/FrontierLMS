@@ -17,26 +17,60 @@ export default function StudentReport() {
   const [activeTerm, setActiveTerm] = useState("")
   const [terms, setTerms] = useState<any>({})
   const [loading, setLoading] = useState(true)
+  const [studentInfo, setStudentInfo] = useState<any>(null)
 
   useEffect(() => {
-    fetchProgress()
+    fetchData()
   }, [])
 
-  const fetchProgress = async () => {
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem('token')
+
+      // Fetch Profile
+      const profileRes = await fetch(`${API_URL}/api/student/profile`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const profileData = await profileRes.json()
+      // Store student info to check class/course type
+      if (profileData.success) {
+        setStudentInfo(profileData.data)
+      }
+
+      // Fetch Progress
+      await fetchProgress(profileData.success ? profileData.data : null)
+    } catch (error) {
+      console.error("Failed to fetch data", error)
+    }
+  }
+
+  const fetchProgress = async (studentData: any) => {
     try {
       const token = localStorage.getItem('token')
       const res = await fetch(`${API_URL}/api/student/progress`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await res.json()
+
       if (data.success && data.data && data.data.length > 0) {
         const termsData: any = {}
+        const isCollege = studentData?.class?.toLowerCase().includes('sem') || studentData?.class?.toLowerCase().includes('tech') || studentData?.class?.toLowerCase().includes('degree');
+
         data.data.forEach((report: any) => {
-          const key = `term${report.term}` // Assuming term is 1, 2 etc.
-          // Transform subjects if needed, or use as is
-          // Backend StudentProgress might have 'subjects' array with {subjectName, marks, totalMarks, grade, remarks}
-          termsData[key] = {
-            name: `Term ${report.term} - ${report.academicYear}`,
+          // Normalize term
+          let termLabel = `Term ${report.term}`;
+          let termKey = `term${report.term}`;
+
+          if (isCollege || report.term.toString().toLowerCase().includes('sem')) {
+            // Extract number if possible, or use as is
+            const semNumber = report.term.replace(/\D/g, '');
+            termLabel = semNumber ? `Semester ${semNumber}` : `Semester ${report.term}`;
+            if (report.term === 'annual') termLabel = 'Annual';
+            termKey = `sem${semNumber || report.term}`;
+          }
+
+          termsData[termKey] = {
+            name: `${termLabel} - ${report.academicYear}`,
             subjects: report.subjects.map((s: any) => ({
               name: s.subjectName || s.subject || "Unknown",
               marks: s.marksObtained || s.marks,
@@ -47,13 +81,31 @@ export default function StudentReport() {
             overallPercentage: report.percentage || 0,
             overallGrade: report.grade || "-",
             rank: report.rank || 0,
-            totalStudents: report.totalStudents || 0
+            totalStudents: report.totalStudents || 0,
+            termRaw: report.term
           }
         })
+
         setTerms(termsData)
-        // Set first available term as active
-        if (Object.keys(termsData).length > 0) {
-          setActiveTerm(Object.keys(termsData)[0])
+
+        // Auto-select the student's current semester if available, or the latest
+        const termKeys = Object.keys(termsData).sort();
+
+        // Try to match current class semester
+        let currentSemKey = "";
+        if (isCollege && studentData?.class) {
+          const currentSemMatch = studentData.class.match(/(\d+)/);
+          if (currentSemMatch) {
+            const semNum = currentSemMatch[0];
+            const candidate = termKeys.find(k => k.includes(semNum));
+            if (candidate) currentSemKey = candidate;
+          }
+        }
+
+        if (currentSemKey) {
+          setActiveTerm(currentSemKey);
+        } else if (termKeys.length > 0) {
+          setActiveTerm(termKeys[termKeys.length - 1]) // Default to latest
         } else {
           setActiveTerm("no_data")
         }
@@ -72,8 +124,9 @@ export default function StudentReport() {
   const currentData = terms[activeTerm]
 
   const handleDownload = () => {
+    window.print();
     toast.success("Downloading report card...", {
-      description: "Your PDF report has been generated successfully."
+      description: "Please save as PDF from the print dialog."
     })
   }
 

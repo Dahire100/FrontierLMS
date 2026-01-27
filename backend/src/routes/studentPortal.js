@@ -16,6 +16,7 @@ router.put('/profile/picture', verifyToken, verifyRole(['student']), profileUplo
 
 // Attendance
 router.get('/attendance', verifyToken, verifyRole(['student']), studentPortalController.getStudentAttendance);
+router.get('/attendance/download', verifyToken, verifyRole(['student']), studentPortalController.downloadAttendanceReport);
 
 // Homework
 router.get('/homework', verifyToken, verifyRole(['student']), studentPortalController.getStudentHomework);
@@ -28,6 +29,12 @@ router.post('/assignments/:assignmentId/submit', verifyToken, verifyRole(['stude
 // Exams
 router.get('/exams', verifyToken, verifyRole(['student']), studentPortalController.getStudentExams);
 router.get('/results', verifyToken, verifyRole(['student']), studentPortalController.getStudentResults);
+
+// Exam Applications & Admit Cards
+router.get('/exams/applications', verifyToken, verifyRole(['student']), studentPortalController.getExamApplications);
+router.post('/exams/apply', verifyToken, verifyRole(['student']), studentPortalController.submitExamApplication);
+router.get('/exams/admit-cards', verifyToken, verifyRole(['student']), studentPortalController.getAdmitCards);
+router.get('/exams/admit-card/:id/download', verifyToken, verifyRole(['student']), studentPortalController.downloadAdmitCard);
 
 // Fees
 router.get('/fees', verifyToken, verifyRole(['student']), studentPortalController.getStudentFees);

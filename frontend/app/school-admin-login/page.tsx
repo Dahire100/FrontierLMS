@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -20,10 +20,35 @@ export default function SchoolAdminLogin() {
   const [otpSent, setOtpSent] = useState(false)
   const [devOTP, setDevOTP] = useState("")
 
+  // Captcha State
+  const [captcha, setCaptcha] = useState("")
+  const [userCaptchaInput, setUserCaptchaInput] = useState("")
+
+  const generateCaptcha = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&";
+    let result = "";
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCaptcha(result);
+    setUserCaptchaInput("");
+  }
+
+  useEffect(() => {
+    generateCaptcha();
+  }, []);
+
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setSuccess("")
+
+    if (userCaptchaInput !== captcha) {
+      setError("Invalid Captcha. Please try again.");
+      generateCaptcha();
+      return;
+    }
+
     setIsLoading(true)
 
     try {

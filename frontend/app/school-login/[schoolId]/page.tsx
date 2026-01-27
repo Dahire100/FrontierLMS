@@ -13,6 +13,7 @@ interface School {
     schoolName: string
     city: string
     state: string
+    logo?: string
 }
 
 export default function SchoolLoginPage() {
@@ -27,6 +28,24 @@ export default function SchoolLoginPage() {
     const [isLoading, setIsLoading] = useState(false)
     const [isFetchingSchool, setIsFetchingSchool] = useState(true)
     const [loginType, setLoginType] = useState<"faculty" | "student">("faculty")
+
+    // Captcha State
+    const [captcha, setCaptcha] = useState("")
+    const [userCaptchaInput, setUserCaptchaInput] = useState("")
+
+    const generateCaptcha = () => {
+        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&";
+        let result = "";
+        for (let i = 0; i < 6; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        setCaptcha(result);
+        setUserCaptchaInput("");
+    }
+
+    useEffect(() => {
+        generateCaptcha();
+    }, []);
 
     useEffect(() => {
         const fetchSchoolDetails = async () => {
@@ -56,6 +75,13 @@ export default function SchoolLoginPage() {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        if (userCaptchaInput !== captcha) {
+            toast.error("Invalid Captcha. Please try again.");
+            generateCaptcha();
+            return;
+        }
+
         setIsLoading(true)
 
         try {
@@ -126,11 +152,15 @@ export default function SchoolLoginPage() {
             >
                 <div className="max-w-md text-center space-y-8">
                     {/* Logo/Icon Box */}
-                    <div className="mx-auto w-24 h-24 bg-white/20 backdrop-blur-sm rounded-3xl flex items-center justify-center shadow-xl">
-                        {isFaculty ? (
-                            <BookOpen className="w-12 h-12 text-white" />
+                    <div className="mx-auto w-32 h-32 bg-white/20 backdrop-blur-sm rounded-3xl flex items-center justify-center shadow-xl overflow-hidden p-4">
+                        {school.logo ? (
+                            <img src={school.logo} alt="School Logo" className="w-full h-full object-contain" />
                         ) : (
-                            <GraduationCap className="w-12 h-12 text-white" />
+                            isFaculty ? (
+                                <BookOpen className="w-12 h-12 text-white" />
+                            ) : (
+                                <GraduationCap className="w-12 h-12 text-white" />
+                            )
                         )}
                     </div>
 
@@ -175,7 +205,7 @@ export default function SchoolLoginPage() {
                 <div className="w-full max-w-md space-y-8">
                     <div className="text-center space-y-2">
                         <h2 className={`text-3xl font-bold ${isFaculty ? 'text-blue-600' : 'text-emerald-600'}`}>
-                            {isFaculty ? "Faculty Sign-In" : "Student Sign-In"}
+                            {isFaculty ? "Faculty Login" : "Student Login"}
                         </h2>
                         <p className="text-gray-500">
                             {isFaculty ? "Enter your credentials to access your account" : "Welcome back! Please login to continue."}
@@ -224,6 +254,38 @@ export default function SchoolLoginPage() {
                             </div>
                         </div>
 
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">
+                                Security Challenge
+                            </label>
+                            <div className="flex gap-2 h-12">
+                                <div className="flex-1 bg-gray-100 border border-gray-300 rounded-md flex items-center justify-center relative overflow-hidden">
+                                    {/* Background Pattern */}
+                                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '10px 10px' }}></div>
+                                    <span className="relative z-10 font-mono text-xl font-bold tracking-[0.2em] text-gray-800 pointer-events-none select-none">
+                                        {captcha || "Loading..."}
+                                    </span>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={generateCaptcha}
+                                    className="h-12 w-12 p-0 border-gray-300 hover:bg-gray-100"
+                                    title="Reload Captcha"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg>
+                                </Button>
+                            </div>
+                            <Input
+                                type="text"
+                                placeholder="Type the characters above"
+                                value={userCaptchaInput}
+                                onChange={(e) => setUserCaptchaInput(e.target.value)}
+                                className="h-12 bg-gray-50 border-gray-200 focus:bg-white transition-colors text-center font-medium tracking-wider"
+                                required
+                            />
+                        </div>
+
                         <Button
                             type="submit"
                             className={`w-full h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 ${isFaculty
@@ -232,7 +294,7 @@ export default function SchoolLoginPage() {
                                 }`}
                             disabled={isLoading}
                         >
-                            {isLoading ? "Signing in..." : "SIGN IN"}
+                            {isLoading ? "Signing in..." : "LOG IN"}
                         </Button>
                     </form>
 

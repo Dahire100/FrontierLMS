@@ -18,6 +18,7 @@ const schoolSchema = new mongoose.Schema({
     description: { type: String, required: true },
     totalStudents: { type: Number },
     totalTeachers: { type: Number },
+    logo: { type: String }, // URL to the logo
     status: {
         type: String,
         enum: ['pending', 'approved', 'rejected', 'suspended'],

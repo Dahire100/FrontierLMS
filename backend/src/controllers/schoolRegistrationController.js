@@ -31,8 +31,8 @@ exports.registerSchool = async (req, res) => {
       schoolName, email, contactNumber, schoolType, boardType,
       establishmentYear, address, city, state, country, pinCode,
       principalName, principalEmail, principalPhone, description,
-      totalStudents, totalTeachers
-    } = req.body;
+      totalStudents, totalTeachers, logo
+    } = req.body; // or req.file if multipart, but sticking to body for now if it's base64 or url
 
     console.log('📝 School registration attempt:', { schoolName, email });
 
@@ -67,7 +67,7 @@ exports.registerSchool = async (req, res) => {
       schoolName, email, contactNumber, schoolType, boardType,
       establishmentYear, address, city, state, country, pinCode,
       principalName, principalEmail, principalPhone, description,
-      totalStudents, totalTeachers,
+      totalStudents, totalTeachers, logo,
       status: 'pending'
     });
 

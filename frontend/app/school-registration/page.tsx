@@ -26,7 +26,8 @@ export default function SchoolRegistrationPage() {
         principalPhone: '',
         description: '',
         totalStudents: '',
-        totalTeachers: ''
+        totalTeachers: '',
+        logo: '' // Base64 string
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -34,6 +35,17 @@ export default function SchoolRegistrationPage() {
             ...formData,
             [e.target.name]: e.target.value
         });
+    };
+
+    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({ ...prev, logo: reader.result as string }));
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -143,6 +155,20 @@ export default function SchoolRegistrationPage() {
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                         placeholder="e.g. 1995"
                                     />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">School Logo</label>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleLogoChange}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    />
+                                    {formData.logo && (
+                                        <div className="mt-2 text-center">
+                                            <img src={formData.logo} alt="Logo Preview" className="h-20 w-auto mx-auto object-contain border rounded-md" />
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Official Email *</label>
