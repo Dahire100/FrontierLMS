@@ -11,12 +11,14 @@ const {
   autoApproveSchool,
   autoRejectSchool,
   getActiveSchools,
-  updateSchoolStatus
+  updateSchoolStatus,
+  getSchoolPublicInfo
 } = require('../controllers/schoolRegistrationController');
 
 // Public route for school registration
 router.post('/register', registerSchool);
 router.get('/active', getActiveSchools);
+router.get('/public/:slug', getSchoolPublicInfo);
 
 // Protected routes for super admin
 router.use(authenticateToken);

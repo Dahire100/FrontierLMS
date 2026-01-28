@@ -111,11 +111,11 @@ export default function StudentDocuments() {
         toast.info("Delete functionality coming soon")
     }
 
-    const getStatusColor = (status: string = "Verified") => {
-        switch (status) {
-            case "Verified": return "bg-green-100 text-green-700 border-green-200"
-            case "Pending": return "bg-yellow-100 text-yellow-700 border-yellow-200"
-            case "Rejected": return "bg-red-100 text-red-700 border-red-200"
+    const getStatusColor = (status: string = "pending") => {
+        switch (status.toLowerCase()) {
+            case "verified": return "bg-green-100 text-green-700 border-green-200"
+            case "pending": return "bg-yellow-100 text-yellow-700 border-yellow-200"
+            case "rejected": return "bg-red-100 text-red-700 border-red-200"
             default: return "bg-gray-100 text-gray-700"
         }
     }
@@ -223,7 +223,18 @@ export default function StudentDocuments() {
                                     </div>
                                     <div>
                                         <p className="text-sm font-medium text-green-900">Verified</p>
-                                        <h3 className="text-2xl font-bold text-green-700">{documents.length}</h3>
+                                        <h3 className="text-2xl font-bold text-green-700">{documents.filter(d => d.status === 'verified').length}</h3>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-100">
+                                <CardContent className="p-6 flex items-center gap-4">
+                                    <div className="p-3 bg-yellow-100 rounded-full text-yellow-600">
+                                        <Clock className="h-6 w-6" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-yellow-900">Pending</p>
+                                        <h3 className="text-2xl font-bold text-yellow-700">{documents.filter(d => d.status === 'pending').length}</h3>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -261,8 +272,11 @@ export default function StudentDocuments() {
                                                     </div>
 
                                                     <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
-                                                        <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 border ${getStatusColor()}`}>
-                                                            <CheckCircle className="h-4 w-4" /> Verified
+                                                        <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 border capitalize ${getStatusColor(doc.status || 'pending')}`}>
+                                                            {doc.status === 'verified' && <CheckCircle className="h-4 w-4" />}
+                                                            {doc.status === 'pending' && <Clock className="h-4 w-4" />}
+                                                            {doc.status === 'rejected' && <AlertCircle className="h-4 w-4" />}
+                                                            {doc.status || 'Pending'}
                                                         </div>
 
                                                         <div className="flex items-center gap-2">

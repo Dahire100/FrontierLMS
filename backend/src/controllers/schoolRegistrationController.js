@@ -554,3 +554,56 @@ exports.updateSchoolStatus = async (req, res) => {
     });
   }
 };
+
+// Get public school info by slug/ID (Public Access)
+exports.getSchoolPublicInfo = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const mongoose = require('mongoose');
+
+    let school = null;
+
+    if (mongoose.Types.ObjectId.isValid(slug)) {
+      school = await School.findById(slug).select('schoolName logo city state email');
+    }
+
+    if (!school) {
+      // Resolve slug logic
+      const normalize = (value) => (value || '').toString().trim().toLowerCase();
+      const toSlug = (value) => normalize(value).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+      const schools = await School.find({}, { schoolName: 1, logo: 1, city: 1, state: 1, email: 1 });
+      const incomingSlug = toSlug(slug);
+
+      school = schools.find((s) => {
+        const slugName = toSlug(s.schoolName);
+        return slugName === incomingSlug;
+      });
+    }
+
+    if (!school) {
+      return res.status(404).json({
+        success: false,
+        error: 'School not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      school: {
+        _id: school._id,
+        schoolName: school.schoolName,
+        logo: school.logo,
+        city: school.city,
+        state: school.state
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching public school info:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch school info'
+    });
+  }
+};

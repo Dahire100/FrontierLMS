@@ -18,9 +18,9 @@ exports.getGeneralSettings = async (req, res) => {
 
             settings = new GeneralSetting({
                 schoolId,
-                schoolName: school.name,
+                schoolName: school.schoolName || school.name,
                 address: school.address,
-                phone: school.phone,
+                phone: school.contactNumber || school.phone,
                 email: school.email,
                 academicYear: new Date().getFullYear().toString() + '-' + (new Date().getFullYear() + 1).toString()
             });
@@ -56,25 +56,38 @@ exports.updateGeneralSettings = async (req, res) => {
     }
 };
 
-// Upload logo/favicon (Placeholder for file upload logic)
+// Upload logo/favicon
 exports.uploadBranding = async (req, res) => {
     const { schoolId } = req.user;
-    const { logoUrl, faviconUrl } = req.body;
 
     try {
-        const updates = {};
-        if (logoUrl) updates.logo = logoUrl;
-        if (faviconUrl) updates.favicon = faviconUrl;
+        let logoUrl = req.body.logoUrl;
 
+        // If file was uploaded
+        if (req.file) {
+            logoUrl = `/uploads/logos/${req.file.filename}`;
+        }
+
+        if (!logoUrl) {
+            return res.status(400).json({ error: 'No logo file or URL provided' });
+        }
+
+        // Update GeneralSetting
         const settings = await GeneralSetting.findOneAndUpdate(
             { schoolId },
-            { $set: updates },
-            { new: true }
+            { $set: { logo: logoUrl } },
+            { new: true, upsert: true }
         );
+
+        // Update School model as well for consistency
+        await School.findByIdAndUpdate(schoolId, { logo: logoUrl });
 
         res.json({
             message: 'Branding updated successfully',
-            data: settings
+            data: {
+                logo: logoUrl,
+                settings
+            }
         });
     } catch (err) {
         console.error('Error updating branding:', err);

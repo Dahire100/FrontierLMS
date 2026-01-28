@@ -45,11 +45,32 @@ export default function AdminProfile() {
 
   const [messages, setMessages] = useState<any[]>([])
   const [photoUploading, setPhotoUploading] = useState(false)
+  const [logoUploading, setLogoUploading] = useState(false) // New state for logo
+  const [schoolLogo, setSchoolLogo] = useState("") // New state for logo URL
 
   useEffect(() => {
     fetchProfile()
     fetchMessages()
+    fetchSchoolSettings() // Fetch settings
   }, [])
+
+  const fetchSchoolSettings = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${API_URL}/api/settings/general`, { // Ensure this route exists and returns logo
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      const result = await response.json()
+      if (result && result.logo) {
+        setSchoolLogo(result.logo)
+      } else if (result && result.schoolId && typeof result.schoolId === 'object' && result.schoolId.logo) {
+        // Fallback if settings populates school
+        setSchoolLogo(result.schoolId.logo)
+      }
+    } catch (err) {
+      console.error("Error fetching school settings:", err)
+    }
+  }
 
   const fetchProfile = async () => {
     try {
@@ -217,6 +238,44 @@ export default function AdminProfile() {
       toast.error(err.message || "Failed to upload photo")
     } finally {
       setPhotoUploading(false)
+    }
+  }
+
+  // New function for School Logo Upload
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file")
+      return
+    }
+
+    setLogoUploading(true)
+    const formData = new FormData()
+    formData.append('logo', file) // Matches 'logo' field in backend middleware
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${API_URL}/api/settings/branding`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        toast.success("School logo updated successfully")
+        setSchoolLogo(result.data.logo) // Update state
+      } else {
+        throw new Error(result.error || "Logo upload failed")
+      }
+    } catch (err: any) {
+      console.error("Logo upload error:", err)
+      toast.error(err.message || "Failed to upload logo")
+    } finally {
+      setLogoUploading(false)
     }
   }
 
@@ -407,91 +466,154 @@ export default function AdminProfile() {
           </Card>
         </div>
 
-        {/* Edit Profile Modal */}
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Edit Admin Profile
-              </DialogTitle>
-              <DialogDescription>
-                Update your administrator profile information below
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input
-                  id="firstName"
-                  value={editForm.firstName}
-                  onChange={(e) => handleInputChange('firstName', e.target.value)}
-                  placeholder="Enter first name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input
-                  id="lastName"
-                  value={editForm.lastName}
-                  onChange={(e) => handleInputChange('lastName', e.target.value)}
-                  placeholder="Enter last name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={editForm.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  placeholder="Enter your email"
-                />
-                <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3 text-orange-500" />
-                  Updating email may require re-verification.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={editForm.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  placeholder="Enter your phone"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Input
-                  id="role"
-                  value={adminInfo.role}
-                  disabled
-                  className="bg-gray-100 text-gray-500 cursor-not-allowed"
-                />
-                <p className="text-[10px] text-muted-foreground">Admin roles cannot be self-edited.</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
-                <Input
-                  id="department"
-                  value={adminInfo.department}
-                  disabled
-                  className="bg-gray-100 text-gray-500 cursor-not-allowed"
-                />
+        {/* School Branding Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <img
+                    src={schoolLogo ? `${API_URL}${schoolLogo}` : "https://via.placeholder.com/50?text=Logo"}
+                    alt="School Logo"
+                    className="h-8 w-8 object-contain rounded bg-gray-100"
+                  />
+                  School Branding
+                </CardTitle>
+                <CardDescription>Manage your school's official logo</CardDescription>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSave} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-6">
+              <div className="relative group cursor-pointer border-2 border-dashed border-gray-300 rounded-lg p-2 hover:border-blue-500 transition-colors" onClick={() => document.getElementById('logo-upload')?.click()}>
+                {schoolLogo ? (
+                  <img
+                    src={`${API_URL}${schoolLogo}`}
+                    alt="Current Logo"
+                    className="h-32 w-32 object-contain"
+                  />
+                ) : (
+                  <div className="h-32 w-32 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded">
+                    <Building className="h-10 w-10 mb-2 opacity-50" />
+                    <span className="text-xs">No Logo</span>
+                  </div>
+                )}
+
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                  <span className="text-white font-medium text-sm flex items-center gap-2">
+                    <Edit className="h-4 w-4" /> Change
+                  </span>
+                </div>
+
+                {logoUploading && (
+                  <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                    <span className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full"></span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Update Logo</Label>
+                <Input
+                  type="file"
+                  id="logo-upload"
+                  accept="image/*"
+                  className="max-w-xs"
+                  onChange={handleLogoUpload}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Recommended: High-resolution PNG or JPG. Max 2MB.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Edit Profile Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Edit Admin Profile
+            </DialogTitle>
+            <DialogDescription>
+              Update your administrator profile information below
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">First Name</Label>
+              <Input
+                id="firstName"
+                value={editForm.firstName}
+                onChange={(e) => handleInputChange('firstName', e.target.value)}
+                placeholder="Enter first name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                value={editForm.lastName}
+                onChange={(e) => handleInputChange('lastName', e.target.value)}
+                placeholder="Enter last name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                placeholder="Enter your email"
+              />
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3 text-orange-500" />
+                Updating email may require re-verification.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                value={editForm.phone}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
+                placeholder="Enter your phone"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Input
+                id="role"
+                value={adminInfo.role}
+                disabled
+                className="bg-gray-100 text-gray-500 cursor-not-allowed"
+              />
+              <p className="text-[10px] text-muted-foreground">Admin roles cannot be self-edited.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              <Input
+                id="department"
+                value={adminInfo.department}
+                disabled
+                className="bg-gray-100 text-gray-500 cursor-not-allowed"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+              <Save className="h-4 w-4 mr-2" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }

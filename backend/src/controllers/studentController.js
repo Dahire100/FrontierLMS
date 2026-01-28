@@ -643,3 +643,54 @@ exports.promoteStudents = async (req, res) => {
     res.status(500).json({ error: 'Failed to promote students' });
   }
 };
+
+// Get pending verification documents (Admin)
+exports.getPendingDocuments = async (req, res) => {
+  const { schoolId } = req.user;
+  try {
+    const StudentDocument = require('../models/StudentDocument');
+    const docs = await StudentDocument.find({ schoolId, status: 'pending' })
+      .populate('studentId', 'firstName lastName class section rollNumber')
+      .sort({ uploadedAt: -1 });
+    res.json(docs);
+  } catch (err) {
+    console.error('Error fetching pending documents:', err);
+    res.status(500).json({ error: 'Failed to fetch pending documents' });
+  }
+};
+
+// Verify/Reject Document (Admin)
+exports.verifyDocument = async (req, res) => {
+  const { schoolId, _id: adminId } = req.user;
+  const { id } = req.params;
+  const { status, note } = req.body; // status: 'verified' | 'rejected'
+
+  if (!['verified', 'rejected'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+
+  try {
+    const StudentDocument = require('../models/StudentDocument');
+    const doc = await StudentDocument.findOneAndUpdate(
+      { _id: id, schoolId },
+      {
+        $set: {
+          status,
+          verifiedBy: adminId,
+          verifiedAt: new Date(),
+          verificationNote: note
+        }
+      },
+      { new: true }
+    );
+
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    res.json({ message: `Document ${status} successfully`, data: doc });
+  } catch (err) {
+    console.error('Error verifying document:', err);
+    res.status(500).json({ error: 'Failed to verify document' });
+  }
+};

@@ -3,8 +3,8 @@ export const dynamic = 'force-dynamic';
 import React, { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { User, Lock, Eye, EyeOff, HelpCircle, ArrowRight, ArrowLeft, GraduationCap } from "lucide-react";
-import { getApiUrl, API_ENDPOINTS } from "@/lib/api-config";
+import { User, Lock, Eye, EyeOff, HelpCircle, ArrowRight, ArrowLeft, GraduationCap, BookOpen, RefreshCw } from "lucide-react";
+import { getApiUrl, API_ENDPOINTS, API_URL } from "@/lib/api-config";
 
 export default function StudentLoginPage() {
     const router = useRouter();
@@ -20,10 +20,55 @@ export default function StudentLoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
+    // Captcha State
+    const [captchaValue, setCaptchaValue] = useState("");
+    const [captchaInput, setCaptchaInput] = useState("");
+    const [schoolLogo, setSchoolLogo] = useState("");
+
+    const generateCaptcha = () => {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let result = "";
+        for (let i = 0; i < 6; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        setCaptchaValue(result);
+        setCaptchaInput("");
+    };
+
+    React.useEffect(() => {
+        generateCaptcha();
+
+        // Fetch School Public Info (Logo)
+        const fetchSchoolInfo = async () => {
+            if (!schoolId) return;
+            try {
+                const apiUrl = getApiUrl(`/api/schools/public/${schoolId}`);
+                const res = await fetch(apiUrl);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && data.school && data.school.logo) {
+                        setSchoolLogo(data.school.logo);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch school info:", error);
+            }
+        };
+
+        fetchSchoolInfo();
+    }, [schoolId]);
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError("");
+
+        if (captchaInput !== captchaValue) {
+            setError("Incorrect Security Code. Please try again.");
+            generateCaptcha();
+            setLoading(false);
+            return;
+        }
 
         try {
             const apiUrl = getApiUrl(API_ENDPOINTS.AUTH.SCHOOL_LOGIN);
@@ -95,7 +140,15 @@ export default function StudentLoginPage() {
             <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-teal-500 via-emerald-600 to-green-700 items-center justify-center relative overflow-hidden p-12">
                 <div className="relative z-10 text-center text-white space-y-8">
                     <div className="inline-block p-6 bg-white/10 backdrop-blur-md rounded-3xl mb-4 shadow-2xl border border-white/20">
-                        <GraduationCap size={64} className="text-yellow-300" />
+                        {schoolLogo ? (
+                            <img
+                                src={`${API_URL}${schoolLogo}`}
+                                alt={schoolName}
+                                className="w-32 h-32 object-contain bg-white/90 rounded-xl p-2"
+                            />
+                        ) : (
+                            <GraduationCap size={64} className="text-yellow-300" />
+                        )}
                     </div>
                     <div>
                         <h1 className="text-5xl font-bold mb-4 leading-tight">{schoolName}</h1>
@@ -143,11 +196,13 @@ export default function StudentLoginPage() {
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-700 pl-1">Username / ID</label>
                                 <div className="relative group">
-                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-teal-600 transition-colors" size={20} />
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 bg-teal-50 p-1.5 rounded-lg text-teal-600 group-focus-within:bg-teal-600 group-focus-within:text-white transition-all duration-300">
+                                        <User size={18} />
+                                    </div>
                                     <input
                                         type="text"
                                         placeholder="Enter your ID"
-                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                                        className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all font-medium"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
                                         required
@@ -158,11 +213,13 @@ export default function StudentLoginPage() {
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-700 pl-1">Password</label>
                                 <div className="relative group">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-teal-600 transition-colors" size={20} />
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 bg-teal-50 p-1.5 rounded-lg text-teal-600 group-focus-within:bg-teal-600 group-focus-within:text-white transition-all duration-300">
+                                        <Lock size={18} />
+                                    </div>
                                     <input
                                         type={showPassword ? "text" : "password"}
                                         placeholder="Enter your password"
-                                        className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                                        className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all font-medium"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         required
@@ -170,21 +227,58 @@ export default function StudentLoginPage() {
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all"
                                     >
-                                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Captcha Field */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 pl-1">Security Check</label>
+                            <div className="flex gap-3">
+                                <div
+                                    className="flex-1 h-12 bg-gray-100 border border-gray-200 rounded-xl flex items-center justify-center font-mono text-xl font-bold tracking-widest text-gray-600 select-none bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]"
+                                >
+                                    {captchaValue}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={generateCaptcha}
+                                    className="h-12 w-12 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:text-teal-600 hover:bg-teal-50 transition-all"
+                                    title="Refresh Code"
+                                >
+                                    <RefreshCw size={20} />
+                                </button>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Enter security code"
+                                className="w-full pl-4 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all font-medium"
+                                value={captchaInput}
+                                onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
+                                required
+                            />
                         </div>
 
                         <div className="flex items-center justify-between pt-2">
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-teal-500/30 hover:shadow-xl hover:shadow-teal-500/40 transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+                                className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-teal-500/30 hover:shadow-xl hover:shadow-teal-500/40 transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 group"
                             >
-                                {loading ? 'Authenticating...' : 'SIGN IN'}
+                                {loading ? (
+                                    <span className="flex items-center gap-2">
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Authenticating...
+                                    </span>
+                                ) : (
+                                    <>
+                                        SIGN IN <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                    </>
+                                )}
                             </button>
                         </div>
                     </form>
@@ -196,7 +290,8 @@ export default function StudentLoginPage() {
 
                         <div className="flex flex-col items-end gap-3 text-sm">
                             <Link href={`/schools/${schoolId}/faculty`} className="flex items-center gap-2 text-teal-600 hover:text-teal-700 font-bold group transition-colors">
-                                Faculty Login <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                                <BookOpen size={18} />
+                                Faculty Login
                             </Link>
                             <Link href={`/schools/${schoolId}/forgot-password?role=student`} className="text-gray-400 hover:text-gray-600 transition-colors">
                                 Forgot Password?

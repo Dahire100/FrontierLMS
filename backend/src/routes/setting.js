@@ -13,6 +13,7 @@ router.get('/general', settingController.getGeneralSettings);
 router.put('/general', settingController.updateGeneralSettings);
 
 // Upload branding
-router.post('/branding', settingController.uploadBranding);
+const logoUpload = require('../middleware/logoUpload');
+router.post('/branding', logoUpload.single('logo'), settingController.uploadBranding);
 
 module.exports = router;

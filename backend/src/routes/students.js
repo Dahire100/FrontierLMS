@@ -23,6 +23,11 @@ router.use(authenticateToken);
 
 // School admin only routes
 const upload = require('../middleware/studentUpload');
+const { getPendingDocuments, verifyDocument } = require('../controllers/studentController');
+
+router.get('/documents/pending', requireSchoolAdmin, getPendingDocuments);
+router.post('/documents/:id/verify', requireSchoolAdmin, verifyDocument);
+
 router.post('/promote', requireSchoolAdmin, promoteStudents);
 router.post('/import', requireSchoolAdmin, importStudents);
 router.post('/', requireSchoolAdmin, upload.any(), addStudent);

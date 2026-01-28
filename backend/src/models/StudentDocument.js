@@ -8,6 +8,14 @@ const studentDocumentSchema = new mongoose.Schema({
     type: { type: String, required: true },
     description: String,
     fileUrl: { type: String, required: true },
+    status: {
+        type: String,
+        enum: ['pending', 'verified', 'rejected'],
+        default: 'pending'
+    },
+    verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    verifiedAt: Date,
+    verificationNote: String,
     uploadedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
