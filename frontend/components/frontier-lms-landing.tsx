@@ -1,7 +1,3 @@
-'use client';
-
-import { API_URL } from '@/lib/api-config';
-import React, { useState, useEffect } from 'react';
 import { Menu, X, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -588,11 +584,11 @@ export default function FrontierLMSLanding() {
                 <span className="ml-1 bg-orange-500 text-white px-2 py-1 rounded text-xs font-bold">LMS</span>
               </div>
               <p className="text-gray-600 text-sm mb-4">
-                Shop No. 208, Shree Kalika<br />
-                Opp. Kalika Mata Mandir, Shingada Talav,
-                Mumbai Naka, Renuka Nagar, Nashik-422001
+                Pune, Maharashtra, India<br />
+                Frontier Campus, 13th Floor, Apex Business Court
               </p>
               <div className="flex gap-3 mb-6">
+
                 {['f', 't', 'in', 'y'].map((social, idx) => (
                   <div key={idx} className="w-10 h-10 border-2 border-blue-600 rounded-full flex items-center justify-center text-blue-600 hover:bg-blue-600 hover:text-white cursor-pointer transition">
                     {social}
@@ -628,22 +624,30 @@ export default function FrontierLMSLanding() {
             <div>
               <h3 className="font-bold text-blue-600 mb-4">Get in Touch</h3>
               <div className="space-y-3 text-gray-700 text-sm">
+<<<<<<< HEAD
                 <p>📍 Nashik, Maharashtra, India</p>
                 <p>📞 +91 78422 36920</p>
                 <p>📞 +91 77200 43415</p>
                 <p>📧 frontierlms@gmail.com</p>
-              </div>
-            </div>
-          </div>
+=======
+                <p>📍 Pune, Maharashtra, India</p>
+                <p>📞 +91 0000000000</p>
+                <p>📞 +91 0000000000</p>
+                <p>📞 +91 0000000000</p>
+                <p>📧 contact@frontierlms.com</p>
+>>>>>>> 50a700b6df2193ca52a4cfea77231cf8dc27e072
+              </div >
+            </div >
+          </div >
 
-          <div className="border-t border-gray-300 pt-6 text-center text-gray-700 text-sm">
-            © Copyright Frontier LMS 2025. All Rights Reserved
-          </div>
-        </div>
-      </footer>
-
-      {/* Previous fixed button removal */}
-
+    <div className="border-t border-gray-300 pt-6 text-center text-gray-700 text-sm">
+      © Copyright Frontier LMS 2025. All Rights Reserved
     </div>
+        </div >
+      </footer >
+
+    {/* Previous fixed button removal */ }
+
+    </div >
   );
 }
