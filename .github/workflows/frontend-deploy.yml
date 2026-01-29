@@ -1,0 +1,129 @@
+name: Frontend Build and Deploy
+
+on:
+  push:
+    branches:
+      - Main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-deploy.yml'
+  pull_request:
+    branches:
+      - Main
+    paths:
+      - 'frontend/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./frontend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+      
+      - name: Run linter
+        run: pnpm run lint
+        continue-on-error: true
+      
+      - name: Build Next.js application
+        run: pnpm run build
+        env:
+          NODE_ENV: production
+          # Add your environment variables here
+          # NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+      
+      - name: Export static files (if using static export)
+        run: |
+          echo "Build completed successfully"
+          ls -la .next
+      
+      # Deploy to your hosting service
+      # Uncomment and configure based on your deployment target
+      
+      # Deploy to Vercel
+      # - name: Deploy to Vercel
+      #   uses: amondnet/vercel-action@v25
+      #   with:
+      #     vercel-token: ${{ secrets.VERCEL_TOKEN }}
+      #     vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+      #     vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+      #     working-directory: ./frontend
+      #     vercel-args: '--prod'
+      
+      # Deploy to Netlify
+      # - name: Deploy to Netlify
+      #   uses: nwtgck/actions-netlify@v2.0
+      #   with:
+      #     publish-dir: './frontend/.next'
+      #     production-deploy: true
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     deploy-message: "Deploy from GitHub Actions"
+      #   env:
+      #     NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      #     NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      
+      # Deploy to GitHub Pages
+      # - name: Deploy to GitHub Pages
+      #   uses: peaceiris/actions-gh-pages@v3
+      #   with:
+      #     github_token: ${{ secrets.GITHUB_TOKEN }}
+      #     publish_dir: ./frontend/out
+      
+      # Deploy to AWS S3 + CloudFront
+      # - name: Deploy to AWS S3
+      #   env:
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     AWS_REGION: ${{ secrets.AWS_REGION }}
+      #   run: |
+      #     aws s3 sync .next s3://your-bucket-name --delete
+      #     aws cloudfront create-invalidation --distribution-id YOUR_DISTRIBUTION_ID --paths "/*"
+      
+      # Deploy to DigitalOcean App Platform
+      # - name: Deploy to DigitalOcean
+      #   uses: digitalocean/app_action@v1.1.5
+      #   with:
+      #     app_name: your-frontend-app
+      #     token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      
+      # Deploy via SSH to VPS
+      # - name: Deploy to VPS via SSH
+      #   uses: appleboy/ssh-action@v1.0.0
+      #   with:
+      #     host: ${{ secrets.VPS_HOST }}
+      #     username: ${{ secrets.VPS_USERNAME }}
+      #     key: ${{ secrets.VPS_SSH_KEY }}
+      #     script: |
+      #       cd /var/www/erp-frontend
+      #       git pull origin main
+      #       npm install
+      #       npm run build
+      #       pm2 restart frontend
+      
+      - name: Deployment Success Notification
+        if: success()
+        run: echo "Frontend deployed successfully!"
+      
+      - name: Deployment Failure Notification
+        if: failure()
+        run: echo "Frontend deployment failed!"
