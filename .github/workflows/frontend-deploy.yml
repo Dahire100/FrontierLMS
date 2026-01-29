@@ -3,13 +3,13 @@ name: Frontend Build and Deploy
 on:
   push:
     branches:
-      - main
+      - Main
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend-deploy.yml'
   pull_request:
     branches:
-      - main
+      - Main
     paths:
       - 'frontend/**'
   workflow_dispatch:
