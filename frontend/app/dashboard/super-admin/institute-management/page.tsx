@@ -27,7 +27,8 @@ import {
   Download,
   RefreshCw,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  Copy
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -82,6 +83,8 @@ export default function InstituteManagement() {
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null)
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [credentialsOpen, setCredentialsOpen] = useState(false)
+  const [newCredentials, setNewCredentials] = useState<any>(null)
 
   // Fetch schools from backend
   const fetchSchools = async () => {
@@ -162,9 +165,19 @@ export default function InstituteManagement() {
       const data = await response.json()
 
       if (response.ok) {
-        toast.success("School Approved Successfully", {
-          description: "Login credentials have been sent to the administrator."
-        })
+        if (data.data?.adminPassword) {
+          setNewCredentials(data.data)
+          setCredentialsOpen(true)
+          if (data.warning) {
+            toast.warning("Email Delivery Issue", {
+              description: data.warning
+            })
+          }
+        } else {
+          toast.success("School Approved Successfully", {
+            description: "Login credentials have been sent to the administrator."
+          })
+        }
         fetchSchools()
       } else {
         toast.error("Approval Failed", {
@@ -599,6 +612,52 @@ export default function InstituteManagement() {
 
           <DialogFooter>
             <Button onClick={() => setIsViewOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={credentialsOpen} onOpenChange={setCredentialsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>School Approved Successfully</DialogTitle>
+            <DialogDescription>
+              Please save these credentials securely. They have also been sent via email.
+            </DialogDescription>
+          </DialogHeader>
+          {newCredentials && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none text-gray-500">Admin Email / Username</label>
+                <div className="flex items-center space-x-2">
+                  <div className="flex-1 bg-gray-100 p-2 rounded border font-mono text-sm">
+                    {newCredentials.adminEmail}
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    navigator.clipboard.writeText(newCredentials.adminEmail)
+                    toast.success("Copied to clipboard")
+                  }}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none text-gray-500">Temporary Password</label>
+                <div className="flex items-center space-x-2">
+                  <div className="flex-1 bg-gray-100 p-2 rounded border font-mono text-sm font-bold text-gray-900">
+                    {newCredentials.adminPassword}
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    navigator.clipboard.writeText(newCredentials.adminPassword)
+                    toast.success("Copied to clipboard")
+                  }}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setCredentialsOpen(false)} className="w-full">Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

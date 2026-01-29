@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { API_URL } from '@/lib/api-config';
 import { Menu, X, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 

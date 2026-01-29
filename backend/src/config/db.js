@@ -3,7 +3,12 @@ require('dotenv').config();
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/frontier_erp', {
+    console.log("DEBUG: Loading MONGO_URI...");
+    console.log("DEBUG: env.MONGO_URI is:", process.env.MONGO_URI ? "Defined (length: " + process.env.MONGO_URI.length + ")" : "Undefined");
+    const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/frontier_erp';
+    console.log("DEBUG: Using URI:", uri.replace(/:[^:]*@/, ':****@')); // Mask password
+
+    const conn = await mongoose.connect(uri, {
       // These options are no longer needed in Mongoose 6+, but keeping for reference if using older versions
       // useNewUrlParser: true,
       // useUnifiedTopology: true,

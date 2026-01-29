@@ -423,6 +423,7 @@ exports.autoApproveSchool = async (req, res) => {
           schoolId: school._id,
           schoolName: school.schoolName,
           adminEmail: adminEmail,
+          adminPassword: adminPassword, // return password for UI display
           adminUserId: newUser._id,
           loginUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`
         }
