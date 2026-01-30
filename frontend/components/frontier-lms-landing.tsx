@@ -449,21 +449,21 @@ export default function FrontierLMSLanding() {
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">📧</div>
                   <div>
                     <h4 className="font-bold text-slate-900">Email Us</h4>
-                    <p className="text-slate-600">contact@frontierlms.com</p>
+                    <p className="text-slate-600">consultantfrp@gmail.com</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">📞</div>
                   <div>
                     <h4 className="font-bold text-slate-900">Call Support</h4>
-                    <p className="text-slate-600">+91 98765 43210</p>
+                    <p className="text-slate-600">+91 63048 45834</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">📍</div>
                   <div>
                     <h4 className="font-bold text-slate-900">Visit HQ</h4>
-                    <p className="text-slate-600">Apex Business Court, Pune, India</p>
+                    <p className="text-slate-600">Nashik, Maharashtra, India</p>
                   </div>
                 </div>
               </div>
@@ -628,9 +628,8 @@ export default function FrontierLMSLanding() {
               <h3 className="font-bold text-blue-600 mb-4">Get in Touch</h3>
               <div className="space-y-3 text-gray-700 text-sm">
                 <p>📍 Nashik, Maharashtra, India</p>
-                <p>📞 +91 78422 36920</p>
-                <p>📞 +91 77200 43415</p>
-                <p>📧 frontierlms@gmail.com</p>
+                <p>📞 +91 63048 45834</p>
+                <p>📧 consultantfrp@gmail.com</p>
               </div >
             </div >
           </div >
