@@ -153,7 +153,7 @@ export default function FrontierLMSLanding() {
                 onClick={() => router.push('/school-registration')}
                 className="bg-blue-600 text-white px-5 py-2 rounded-full font-bold hover:bg-blue-700 transition shadow-md hover:shadow-lg"
               >
-                Register School
+                Register Institute
               </button>
             </div>
 
@@ -176,7 +176,7 @@ export default function FrontierLMSLanding() {
                 onClick={() => router.push('/school-registration')}
                 className="w-full bg-blue-600 text-white px-4 py-2 rounded-full font-bold hover:bg-blue-700 transition shadow-md"
               >
-                Register School
+                Register Institute
               </button>
 
             </div>
@@ -217,7 +217,7 @@ export default function FrontierLMSLanding() {
                   onClick={() => router.push('/school-registration')}
                   className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md px-8 py-4 rounded-lg font-bold text-lg transition-all transform hover:translate-y-[-2px]"
                 >
-                  Register School
+                  Register Institute
                 </button>
               </div>
             </div>

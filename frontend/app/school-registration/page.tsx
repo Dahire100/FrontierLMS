@@ -3,7 +3,7 @@
 import { API_URL } from '@/lib/api-config';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Building2, School, GraduationCap, MapPin, Mail, Phone, User, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Building2, Building, GraduationCap, MapPin, Mail, Phone, User, CheckCircle } from 'lucide-react';
 
 export default function SchoolRegistrationPage() {
     const router = useRouter();
@@ -13,7 +13,8 @@ export default function SchoolRegistrationPage() {
         schoolName: '',
         email: '',
         contactNumber: '',
-        schoolType: 'K-12',
+        type: 'School',
+        schoolType: 'School',
         boardType: 'CBSE',
         establishmentYear: '',
         address: '',
@@ -116,8 +117,8 @@ export default function SchoolRegistrationPage() {
                 <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
                     <div className="bg-blue-600 px-8 py-6 text-white">
                         <h1 className="text-3xl font-bold flex items-center gap-3">
-                            <School className="w-8 h-8" />
-                            Register Your School
+                            <Building className="w-8 h-8" />
+                            Register Your {formData.type}
                         </h1>
                         <p className="mt-2 text-blue-100">
                             Join Frontier LMS and transform your educational institution.
@@ -125,16 +126,43 @@ export default function SchoolRegistrationPage() {
                     </div>
 
                     <form onSubmit={handleSubmit} className="p-8 space-y-8">
-                        {/* School Basic Info */}
+                        {/* Type Selection */}
+                        <div className="flex justify-center mb-8">
+                            <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, type: 'School', schoolType: '', boardType: '' })}
+                                    className={`px-6 py-2 rounded-md text-sm font-medium transition ${formData.type === 'School'
+                                        ? 'bg-white text-blue-600 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-900'
+                                        }`}
+                                >
+                                    School
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, type: 'College', schoolType: '', boardType: '' })}
+                                    className={`px-6 py-2 rounded-md text-sm font-medium transition ${formData.type === 'College'
+                                        ? 'bg-white text-blue-600 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-900'
+                                        }`}
+                                >
+                                    College
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Basic Info */}
                         <div className="space-y-6">
                             <h3 className="text-xl font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
                                 <Building2 className="w-5 h-5 text-blue-600" />
-                                School Information
+                                {formData.type} Information
                             </h3>
 
                             <div className="grid md:grid-cols-2 gap-6">
+
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">School Name *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">{formData.type} Name *</label>
                                     <input
                                         type="text"
                                         name="schoolName"
@@ -142,7 +170,7 @@ export default function SchoolRegistrationPage() {
                                         value={formData.schoolName}
                                         onChange={handleChange}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                        placeholder="e.g. Frontier High School"
+                                        placeholder="e.g. Frontier Academy"
                                     />
                                 </div>
                                 <div>
@@ -157,7 +185,7 @@ export default function SchoolRegistrationPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">School Logo</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">{formData.type} Logo</label>
                                     <input
                                         type="file"
                                         accept="image/*"
@@ -195,34 +223,26 @@ export default function SchoolRegistrationPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">School Type</label>
-                                    <select
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">{formData.type} Type</label>
+                                    <input
+                                        type="text"
                                         name="schoolType"
                                         value={formData.schoolType}
                                         onChange={handleChange}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    >
-                                        <option value="K-12">K-12</option>
-                                        <option value="College">College</option>
-                                        <option value="University">University</option>
-                                        <option value="Coaching">Coaching Institute</option>
-                                    </select>
+                                        placeholder={`e.g. ${formData.type === 'School' ? 'High School' : 'Engineering College'}`}
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Board/Affiliation</label>
-                                    <select
+                                    <input
+                                        type="text"
                                         name="boardType"
                                         value={formData.boardType}
                                         onChange={handleChange}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    >
-                                        <option value="CBSE">CBSE</option>
-                                        <option value="ICSE">ICSE</option>
-                                        <option value="State Board">State Board</option>
-                                        <option value="IB">IB</option>
-                                        <option value="IGCSE">IGCSE</option>
-                                        <option value="Other">Other</option>
-                                    </select>
+                                        placeholder={`e.g. ${formData.type === 'School' ? 'CBSE' : 'UGC'}`}
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -336,7 +356,7 @@ export default function SchoolRegistrationPage() {
                         <div className="space-y-6">
                             <h3 className="text-xl font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
                                 <GraduationCap className="w-5 h-5 text-blue-600" />
-                                Institute Statistics
+                                {formData.type} Statistics
                             </h3>
 
                             <div className="grid md:grid-cols-2 gap-6">
@@ -368,7 +388,7 @@ export default function SchoolRegistrationPage() {
                                         value={formData.description}
                                         onChange={handleChange}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                        placeholder="Tell us more about your school..."
+                                        placeholder={`Tell us more about your ${formData.type.toLowerCase()}...`}
                                     />
                                 </div>
                             </div>

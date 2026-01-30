@@ -28,7 +28,7 @@ function generateRandomPassword(length = 12) {
 exports.registerSchool = async (req, res) => {
   try {
     const {
-      schoolName, email, contactNumber, schoolType, boardType,
+      schoolName, email, contactNumber, schoolType, type, boardType,
       establishmentYear, address, city, state, country, pinCode,
       principalName, principalEmail, principalPhone, description,
       totalStudents, totalTeachers, logo
@@ -64,7 +64,7 @@ exports.registerSchool = async (req, res) => {
 
     // Create new school registration
     const newSchool = new School({
-      schoolName, email, contactNumber, schoolType, boardType,
+      schoolName, email, contactNumber, schoolType, type, boardType,
       establishmentYear, address, city, state, country, pinCode,
       principalName, principalEmail, principalPhone, description,
       totalStudents, totalTeachers, logo,
