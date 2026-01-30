@@ -69,7 +69,7 @@ export default function StudentInfo() {
         rollNo: s.rollNumber ? s.rollNumber.toString() : "N/A",
         class: s.class,
         section: s.section,
-        status: "Active", // Backend currently doesn't return status, assuming Active
+        status: s.isActive ? "Active" : "Inactive",
         gender: s.gender,
         admissionDate: s.admissionDate || new Date().toISOString(),
         parentName: s.parentName,
@@ -92,30 +92,52 @@ export default function StudentInfo() {
   }, [fetchStudents])
 
   const handleAddStudent = async (data: any) => {
+    console.log('📝 handleAddStudent called with data:', data)
+
     try {
       const token = localStorage.getItem("token")
+      if (!token) {
+        toast.error("You are not logged in. Please log in again.")
+        return
+      }
 
       const formData = new FormData()
 
-      // Split name
-      const [firstName, ...lastNameParts] = data.name.split(' ')
-      const lastName = lastNameParts.join(' ') || ''
-      const classParts = data.class.replace('-', ' ').split(' ')
+      // Split name - if only one word, use it for both first and last name
+      let firstName = data.name?.trim() || 'Student';
+      let lastName = '';
+
+      if (data.name && data.name.includes(' ')) {
+        const parts = data.name.trim().split(' ');
+        firstName = parts[0];
+        lastName = parts.slice(1).join(' ');
+      } else {
+        // If single word name, use it as lastName too
+        lastName = firstName;
+      }
+
+      // Parse class and section
+      const classParts = data.class?.replace('-', ' ').split(' ') || ['1', 'A']
       const studentClass = classParts[0]
       const section = classParts.length > 1 ? classParts[1] : 'A'
+
+      console.log('📝 Parsed data:', { firstName, lastName, studentClass, section })
 
       formData.append('firstName', firstName)
       formData.append('lastName', lastName)
       formData.append('class', studentClass)
       formData.append('section', section)
-      formData.append('rollNumber', data.rollNo)
-      formData.append('email', data.email)
-      formData.append('parentPhone', data.parentPhone)
-      formData.append('parentName', data.parentName)
-      formData.append('parentEmail', data.parentEmail)
-      formData.append('gender', data.gender)
-      formData.append('admissionDate', data.admissionDate)
+      formData.append('rollNumber', data.rollNo || '0')
+      formData.append('email', data.email || '')
+      formData.append('parentPhone', data.parentPhone || '')
+      formData.append('parentName', data.parentName || '')
+      formData.append('parentEmail', data.parentEmail || '')
+      formData.append('gender', data.gender || 'Other')
+      formData.append('admissionDate', data.admissionDate || new Date().toISOString().split('T')[0])
       if (data.address) formData.append('address', data.address)
+      formData.append('isActive', data.status === 'Active' ? 'true' : 'false')
+
+      console.log('📝 Sending to API:', API_URL + '/api/students')
 
       const res = await fetch(`${API_URL}/api/students`, {
         method: "POST",
@@ -125,15 +147,20 @@ export default function StudentInfo() {
         body: formData
       })
 
+      console.log('📝 API Response status:', res.status)
+
+      const responseData = await res.json()
+      console.log('📝 API Response data:', responseData)
+
       if (!res.ok) {
-        const errData = await res.json()
-        throw new Error(errData.error || "Failed to add student")
+        throw new Error(responseData.error || "Failed to add student")
       }
 
-      toast.success("Student added successfully")
+      toast.success("Student added successfully!")
       setIsModalOpen(false)
       fetchStudents()
     } catch (error) {
+      console.error('❌ Error adding student:', error)
       toast.error(error instanceof Error ? error.message : "Failed to add student")
     }
   }
@@ -146,8 +173,16 @@ export default function StudentInfo() {
 
       const formData = new FormData()
 
-      const [firstName, ...lastNameParts] = data.name.split(' ')
-      const lastName = lastNameParts.join(' ') || ''
+      let firstName = data.name;
+      let lastName = '';
+
+      if (data.name.includes(' ')) {
+        const parts = data.name.split(' ');
+        firstName = parts[0];
+        lastName = parts.slice(1).join(' ');
+      }
+
+
       const classParts = data.class.replace('-', ' ').split(' ')
       const studentClass = classParts[0]
       const section = classParts.length > 1 ? classParts[1] : 'A'
@@ -164,6 +199,7 @@ export default function StudentInfo() {
       formData.append('gender', data.gender)
       formData.append('admissionDate', data.admissionDate)
       if (data.address) formData.append('address', data.address)
+      formData.append('isActive', data.status === 'Active' ? 'true' : 'false')
 
       const res = await fetch(`${API_URL}/api/students/${editingStudent.id}`, {
         method: "PUT",

@@ -83,11 +83,23 @@ exports.getStudentById = async (req, res) => {
 // Add new student
 exports.addStudent = async (req, res) => {
   const { schoolId } = req.user;
-  const {
+  let {
     firstName, lastName, class: studentClass, section, rollNumber,
-    dateOfBirth, gender, address, phone, email, parentName, parentPhone,
-    bloodGroup, transportRoute
+    dateOfBirth, gender, address, phone, email, parentName, parentPhone, parentEmail,
+    bloodGroup, transportRoute, isActive
   } = req.body;
+
+  // Handle missing lastName - default to firstName or 'Student'
+  if (!lastName || lastName.trim() === '') {
+    lastName = firstName || 'Student';
+  }
+
+  // Convert isActive string to boolean
+  if (typeof isActive === 'string') {
+    isActive = isActive === 'true';
+  }
+
+  console.log('📝 Adding student:', { firstName, lastName, studentClass, section, email, schoolId });
 
   // Fetch School to get the name for prefixing
   const school = await School.findById(schoolId);
@@ -98,7 +110,8 @@ exports.addStudent = async (req, res) => {
   const schoolNameFull = school.schoolName.replace(/[^a-zA-Z0-9]/g, '');
 
   const studentId = generateStudentId();
-  const admissionDate = new Date();
+  // Use provided admissionDate or default to now
+  const admissionDate = req.body.admissionDate ? new Date(req.body.admissionDate) : new Date();
 
   // Handle Files
   let profilePicture = null;
@@ -127,11 +140,12 @@ exports.addStudent = async (req, res) => {
     });
   }
 
-  // Check if User exists with this email
+  // Check if User exists with this email (but don't block - just skip user creation)
+  let existingUser = null;
   if (email) {
-    const existingUser = await User.findOne({ email });
+    existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(409).json({ error: 'A user with this email already exists.' });
+      console.log(`ℹ️ User with email ${email} already exists. Student will be created without new user account.`);
     }
   }
 
@@ -139,34 +153,37 @@ exports.addStudent = async (req, res) => {
     const newStudent = new Student({
       studentId, firstName, lastName, class: studentClass, section, rollNumber,
       admissionDate, dateOfBirth, gender, address, phone, email,
-      parentName, parentPhone, bloodGroup, transportRoute, schoolId,
-      profilePicture, fatherPhoto, motherPhoto, guardianPhoto, documents
+      parentName, parentPhone, parentEmail, bloodGroup, transportRoute, schoolId,
+      profilePicture, fatherPhoto, motherPhoto, guardianPhoto, documents,
+      isActive: isActive !== undefined ? isActive : true
     });
 
     await newStudent.save();
+    console.log(`✅ Student saved: ${studentId} - ${firstName} ${lastName}`);
 
-    // Create user account for student
-    const charset = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let randomPart = '';
-    for (let i = 0; i < 6; i++) {
-      randomPart += charset.charAt(Math.floor(Math.random() * charset.length));
-    }
-    const studentPassword = `${schoolNameFull}@${randomPart}`;
-    const hashedPassword = bcrypt.hashSync(studentPassword, 10);
+    // Only create user account if email doesn't already exist
+    let studentPassword = null;
+    if (email && !existingUser) {
+      const charset = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      let randomPart = '';
+      for (let i = 0; i < 6; i++) {
+        randomPart += charset.charAt(Math.floor(Math.random() * charset.length));
+      }
+      studentPassword = `${schoolNameFull}@${randomPart}`;
+      const hashedPassword = bcrypt.hashSync(studentPassword, 10);
 
-    await User.create({
-      email,
-      username: studentId, // Set username to Student ID (Starts with S)
-      passwordHash: hashedPassword,
-      role: 'student',
-      firstName,
-      lastName,
-      schoolId,
-      isActive: true
-    });
+      await User.create({
+        email,
+        username: studentId,
+        passwordHash: hashedPassword,
+        role: 'student',
+        firstName,
+        lastName,
+        schoolId,
+        isActive: true
+      });
 
-    // Send credentials via email
-    if (email) {
+      // Send credentials via email
       try {
         const { sendStudentCredentials } = require('../utils/emailService');
         await sendStudentCredentials(email, `${firstName} ${lastName}`, studentId, studentPassword);
@@ -176,11 +193,11 @@ exports.addStudent = async (req, res) => {
     }
 
     // Check if Parent Email exists and Create Parent User if needed
-    let parentEmail = req.body.parentEmail;
+    let parentEmailAddr = req.body.parentEmail;
     let parentPassword = null;
 
-    if (parentEmail) {
-      const existingParent = await User.findOne({ email: parentEmail });
+    if (parentEmailAddr) {
+      const existingParent = await User.findOne({ email: parentEmailAddr });
 
       if (!existingParent) {
         const charset = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -195,7 +212,7 @@ exports.addStudent = async (req, res) => {
         const parentUsername = `P${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
         await User.create({
-          email: parentEmail,
+          email: parentEmailAddr,
           username: parentUsername,
           passwordHash: hashedParentPassword,
           role: 'parent',
@@ -206,15 +223,15 @@ exports.addStudent = async (req, res) => {
           phone: parentPhone
         });
 
-        console.log(`✅ Parent User Created: ${parentEmail} / ${parentPassword}`);
+        console.log(`✅ Parent User Created: ${parentEmailAddr} / ${parentPassword}`);
         try {
           const { sendParentCredentials } = require('../utils/emailService');
-          await sendParentCredentials(parentEmail, parentName, parentUsername, parentPassword);
+          await sendParentCredentials(parentEmailAddr, parentName, parentUsername, parentPassword);
         } catch (pErr) {
           console.error('Parent email failed', pErr);
         }
       } else {
-        console.log(`ℹ️ Parent User already exists: ${parentEmail}`);
+        console.log(`ℹ️ Parent User already exists: ${parentEmailAddr}`);
       }
     }
 
@@ -236,9 +253,9 @@ exports.addStudent = async (req, res) => {
     };
 
     // Add parent credentials if created
-    if (parentEmail && parentPassword) {
+    if (parentEmailAddr && parentPassword) {
       responseCredentials.parent = {
-        email: parentEmail,
+        email: parentEmailAddr,
         password: parentPassword
       };
     }
@@ -399,7 +416,7 @@ exports.updateStudent = async (req, res) => {
   const allowedFields = [
     'firstName', 'lastName', 'class', 'section', 'rollNumber', 'dateOfBirth',
     'gender', 'address', 'phone', 'email', 'parentName', 'parentPhone',
-    'bloodGroup', 'transportRoute'
+    'bloodGroup', 'transportRoute', 'isActive'
   ];
 
   const updateData = {};

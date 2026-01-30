@@ -86,6 +86,7 @@ export default function StudentAdmission() {
             // Computed fields
             formData.append('name', `${data.firstName || ''} ${data.lastName || ''}`)
             formData.append('parentName', data.fatherName || data.guardianName || data.motherName || '')
+            formData.append('parentPhone', data.fatherPhone || data.guardianPhone || data.motherPhone || '')
             formData.append('address', data.currentAddress || '')
             if (data.routeId) formData.append('transportRoute', data.routeId)
             if (data.hostelId) formData.append('hostelName', data.hostelId)
