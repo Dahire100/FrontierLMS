@@ -181,7 +181,7 @@ export default function FacultyLoginPage() {
 
                 <div className="w-full max-w-md space-y-8">
                     <div className="text-center space-y-2">
-                        <h3 className="text-3xl font-bold text-blue-700">Faculty Sign-In</h3>
+                        <h3 className="text-3xl font-bold text-blue-700">Admin & Faculty Sign-In</h3>
                         <p className="text-gray-500">Enter your credentials to access your account</p>
                     </div>
 
