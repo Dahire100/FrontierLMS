@@ -45,7 +45,7 @@ import { API_URL } from "@/lib/api-config"
 export default function ItemSetPage() {
     const [sets, setSets] = useState<any[]>([])
     const [items, setItems] = useState<any[]>([])
-    const [form, setForm] = useState({ setName: "", items: [{ item: "", quantity: 1 }] })
+    const [form, setForm] = useState({ setName: "", setCode: "", items: [{ item: "", quantity: 1 }] })
     const [loading, setLoading] = useState(false)
     const [fetching, setFetching] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
@@ -101,7 +101,7 @@ export default function ItemSetPage() {
             if (!res.ok) throw new Error(result.error || "Failed to commit set")
 
             toast.success("Institutional set strategy committed")
-            setForm({ setName: "", items: [{ item: "", quantity: 1 }] })
+            setForm({ setName: "", setCode: "", items: [{ item: "", quantity: 1 }] })
             fetchData()
         } catch (error: any) {
             toast.error(error.message)
@@ -221,6 +221,16 @@ export default function ItemSetPage() {
                                         value={form.setName}
                                         onChange={(e) => setForm({ ...form, setName: e.target.value })}
                                         placeholder="Identify Institutional Set"
+                                        className="bg-gray-50/50 border-none ring-1 ring-gray-100 h-14 px-5 rounded-2xl focus:ring-purple-500 font-bold"
+                                    />
+                                </div>
+
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Set Code <span className="text-rose-500">*</span></Label>
+                                    <Input
+                                        value={form.setCode}
+                                        onChange={(e) => setForm({ ...form, setCode: e.target.value })}
+                                        placeholder="Unique Code (e.g. SET-001)"
                                         className="bg-gray-50/50 border-none ring-1 ring-gray-100 h-14 px-5 rounded-2xl focus:ring-purple-500 font-bold"
                                     />
                                 </div>

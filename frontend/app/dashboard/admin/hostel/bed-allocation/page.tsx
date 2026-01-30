@@ -115,7 +115,11 @@ export default function BedAllocation() {
       })
       const data = await response.json()
 
-      if (data.success) {
+      // The students API returns an array directly, not { success: true, data: ... }
+      if (Array.isArray(data)) {
+        setStudents(data)
+      } else if (data.success && Array.isArray(data.data)) {
+        // Fallback in case API changes
         setStudents(data.data)
       }
     } catch (error) {
@@ -407,10 +411,10 @@ export default function BedAllocation() {
                           <TableCell className="text-right">₹{allocation.monthlyFee}</TableCell>
                           <TableCell>
                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${allocation.status === "active"
-                                ? "bg-green-100 text-green-800"
-                                : allocation.status === "vacated"
-                                  ? "bg-gray-100 text-gray-800"
-                                  : "bg-yellow-100 text-yellow-800"
+                              ? "bg-green-100 text-green-800"
+                              : allocation.status === "vacated"
+                                ? "bg-gray-100 text-gray-800"
+                                : "bg-yellow-100 text-yellow-800"
                               }`}>
                               {allocation.status}
                             </span>

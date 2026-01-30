@@ -122,7 +122,7 @@ export default function SearchIncome() {
             label: "Amount",
             sortable: true,
             render: (value: number) => (
-                <span className="font-bold text-emerald-700">₹{value.toLocaleString()}</span>
+                <span className="font-bold text-emerald-700">₹{(value || 0).toLocaleString()}</span>
             )
         }
     ]
@@ -232,7 +232,7 @@ export default function SearchIncome() {
                         />
                         <StatCard
                             title="Total Value"
-                            value={`₹${stats.totalAmount.toLocaleString()}`}
+                            value={`₹${(stats.totalAmount || 0).toLocaleString()}`}
                             icon={TrendingUp}
                             iconColor="text-emerald-600"
                             iconBgColor="bg-emerald-50"

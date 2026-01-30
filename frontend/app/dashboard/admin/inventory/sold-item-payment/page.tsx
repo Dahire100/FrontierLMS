@@ -42,13 +42,12 @@ export default function SoldItemPaymentPage() {
         try {
             setFetching(true)
             const token = localStorage.getItem("token")
-            const res = await fetch(`${API_URL}/api/inventory/sales`, {
+            const res = await fetch(`${API_URL}/api/inventory/sold-payments`, {
                 headers: { "Authorization": `Bearer ${token}` }
             })
             const data = await res.json()
             if (Array.isArray(data)) {
-                // Return only sales that have recorded payments
-                setPayments(data.filter(sale => sale.paidAmount > 0))
+                setPayments(data)
             }
         } catch (error) {
             console.error(error)
@@ -64,7 +63,7 @@ export default function SoldItemPaymentPage() {
 
     const columns = [
         {
-            key: "saleNumber",
+            key: "paymentNumber",
             label: "Receipt No",
             render: (val: string) => (
                 <div className="flex items-center gap-3">
@@ -74,10 +73,10 @@ export default function SoldItemPaymentPage() {
             )
         },
         {
-            key: "customerName",
+            key: "sale",
             label: "Beneficiary Vector",
-            render: (val: string) => (
-                <span className="text-xs font-black text-gray-700 uppercase">{val}</span>
+            render: (val: any) => (
+                <span className="text-xs font-black text-gray-700 uppercase">{val?.customerName}</span>
             )
         },
         {
@@ -90,14 +89,14 @@ export default function SoldItemPaymentPage() {
             )
         },
         {
-            key: "paidAmount",
+            key: "amount",
             label: "Liquidity (₹)",
             render: (val: number) => (
                 <div className="font-black text-emerald-700 text-lg tracking-tighter">₹{val?.toLocaleString()}</div>
             )
         },
         {
-            key: "saleDate",
+            key: "paymentDate",
             label: "Operational Stamp",
             render: (val: string) => (
                 <div className="flex items-center gap-2 text-gray-400 font-bold text-[10px]">
@@ -108,8 +107,8 @@ export default function SoldItemPaymentPage() {
     ]
 
     const filteredPayments = payments.filter((p: any) =>
-        p.saleNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
+        p.paymentNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.sale?.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
     return (

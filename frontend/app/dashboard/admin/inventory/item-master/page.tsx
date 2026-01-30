@@ -107,7 +107,13 @@ export default function ItemMaster() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          purchasePrice: Number(form.purchasePrice),
+          sellingPrice: Number(form.sellingPrice),
+          minimumStock: Number(form.minimumStock) || 10,
+          quantity: 0 // Initialize with 0 quantity, stock added via stock-in
+        })
       })
 
       const result = await res.json()
@@ -280,6 +286,7 @@ export default function ItemMaster() {
                     <div className="relative group">
                       <DollarSign size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-600" />
                       <Input
+                        type="number"
                         value={form.purchasePrice}
                         onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })}
                         placeholder="0.00"
@@ -292,6 +299,7 @@ export default function ItemMaster() {
                     <div className="relative group">
                       <DollarSign size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-900" />
                       <Input
+                        type="number"
                         value={form.sellingPrice}
                         onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
                         placeholder="0.00"

@@ -49,7 +49,11 @@ export default function ClassworkReport() {
                 headers: { "Authorization": `Bearer ${token}` }
             })
             const data = await res.json()
-            if (Array.isArray(data)) setClasses(data)
+            if (data.success && Array.isArray(data.data)) {
+                setClasses(data.data)
+            } else if (Array.isArray(data)) {
+                setClasses(data)
+            }
         } catch { }
     }
 
@@ -181,10 +185,10 @@ export default function ClassworkReport() {
                                                 <TableCell>{cw.dueDate ? new Date(cw.dueDate).toLocaleDateString() : '-'}</TableCell>
                                                 <TableCell>
                                                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${cw.status === 'completed'
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : cw.status === 'in-progress'
-                                                                ? 'bg-blue-100 text-blue-800'
-                                                                : 'bg-yellow-100 text-yellow-800'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : cw.status === 'in-progress'
+                                                            ? 'bg-blue-100 text-blue-800'
+                                                            : 'bg-yellow-100 text-yellow-800'
                                                         }`}>
                                                         {cw.status}
                                                     </span>

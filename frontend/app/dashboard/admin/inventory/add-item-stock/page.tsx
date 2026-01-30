@@ -16,20 +16,11 @@ import {
 } from "@/components/ui/select"
 import {
     Pencil,
-    List,
-    Download,
-    FileText,
-    Printer,
-    Grid,
-    Columns,
+    Package,
     Plus,
     Minus,
     Search,
-    Package,
-    Truck,
-    Store,
     Calendar,
-    FileUp,
     Database,
     RefreshCcw,
     Loader2
@@ -42,17 +33,17 @@ export default function AddItemStockPage() {
     const [items, setItems] = useState<any[]>([])
     const [suppliers, setSuppliers] = useState<any[]>([])
     const [stores, setStores] = useState<any[]>([])
-    const [categories, setCategories] = useState<any[]>([])
-    const [movements, setMovements] = useState<any[]>([])
+    const [stocks, setStocks] = useState<any[]>([])
 
     const [loading, setLoading] = useState(false)
     const [fetching, setFetching] = useState(true)
     const [quantity, setQuantity] = useState(0)
+    const [price, setPrice] = useState(0)
+
     const [form, setForm] = useState({
         itemId: "",
         supplierId: "",
         storeId: "",
-        categoryId: "",
         date: new Date().toISOString().split('T')[0],
         description: ""
     })
@@ -63,39 +54,27 @@ export default function AddItemStockPage() {
             const token = localStorage.getItem("token")
             const headers = { "Authorization": `Bearer ${token}` }
 
-            const [itemsRes, supRes, storeRes, catRes] = await Promise.all([
+            // Parallel fetch
+            const [itemsRes, supRes, storeRes, stocksRes] = await Promise.all([
                 fetch(`${API_URL}/api/inventory?limit=100`, { headers }),
                 fetch(`${API_URL}/api/inventory/suppliers`, { headers }),
                 fetch(`${API_URL}/api/inventory/stores`, { headers }),
-                fetch(`${API_URL}/api/inventory/categories`, { headers })
+                fetch(`${API_URL}/api/inventory/stocks`, { headers })
             ])
 
             const itemsData = await itemsRes.json()
             const supData = await supRes.json()
             const storeData = await storeRes.json()
-            const catData = await catRes.json()
+            const stocksData = await stocksRes.json()
 
-            if (itemsData.items) {
-                setItems(itemsData.items)
-                // Filter movements that are only purchases (accruals)
-                const accruals = itemsData.items.flatMap((item: any) =>
-                    item.transactions.filter((t: any) => t.type === 'purchase').map((t: any) => ({
-                        ...t,
-                        name: item.itemName,
-                        cat: item.category,
-                        sub: item.itemCode,
-                        _id: `${item._id}-${t._id}`
-                    }))
-                ).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                setMovements(accruals)
-            }
+            if (itemsData.items) setItems(itemsData.items)
             if (Array.isArray(supData)) setSuppliers(supData)
             if (Array.isArray(storeData)) setStores(storeData)
-            if (Array.isArray(catData)) setCategories(catData)
+            if (Array.isArray(stocksData)) setStocks(stocksData)
 
         } catch (error) {
             console.error(error)
-            toast.error("Failed to sync accrual grid")
+            toast.error("Failed to sync inventory registry")
         } finally {
             setFetching(false)
         }
@@ -106,33 +85,43 @@ export default function AddItemStockPage() {
     }, [fetchData])
 
     const handleSubmit = async () => {
-        if (!form.itemId || quantity <= 0) {
-            toast.error("Asset target and volume are required")
+        if (!form.itemId || quantity <= 0 || !form.storeId || !form.supplierId) {
+            toast.error("Asset, quantity, store, and supplier are required")
             return
         }
 
         try {
             setLoading(true)
             const token = localStorage.getItem("token")
-            const res = await fetch(`${API_URL}/api/inventory/${form.itemId}/transaction`, {
+
+            // Calculate totals
+            const total = quantity * price;
+
+            const res = await fetch(`${API_URL}/api/inventory/stocks`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    type: "purchase",
+                    item: form.itemId,
+                    store: form.storeId,
+                    supplier: form.supplierId,
                     quantity: Number(quantity),
-                    notes: form.description,
-                    date: form.date
+                    purchasePrice: Number(price),
+                    totalAmount: total,
+                    netAmount: total, // Simplified for now (no tax/discount logic in UI yet)
+                    stockDate: form.date,
+                    notes: form.description
                 })
             })
 
             const result = await res.json()
-            if (!res.ok) throw new Error(result.error || "Failed to commit accrual")
+            if (!res.ok) throw new Error(result.error || "Failed to commit stock entry")
 
-            toast.success("Asset accrual synchronized")
+            toast.success("Stock inventory synced")
             setQuantity(0)
+            setPrice(0)
             setForm({ ...form, itemId: "", description: "" })
             fetchData()
         } catch (error: any) {
@@ -144,37 +133,53 @@ export default function AddItemStockPage() {
 
     const columns = [
         {
-            key: "name",
+            key: "item",
             label: "Resource Asset",
-            render: (val: string, row: any) => (
+            render: (val: any) => (
                 <div className="flex items-center gap-3">
                     <div className="h-9 w-9 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
                         <Package size={16} />
                     </div>
                     <div>
-                        <span className="font-black text-gray-900 tracking-tight uppercase leading-none">{val}</span>
-                        <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">{row.cat} / {row.sub}</div>
+                        <span className="font-black text-gray-900 tracking-tight uppercase leading-none">{val?.itemName || 'Unknown'}</span>
+                        <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                            {val?.itemCode}
+                        </div>
                     </div>
                 </div>
             )
         },
         {
+            key: "store",
+            label: "Storage Hub",
+            render: (val: any) => (
+                <span className="text-xs font-bold text-gray-600 uppercase">{val?.storeName || '-'}</span>
+            )
+        },
+        {
             key: "quantity",
-            label: "Movement Yield",
+            label: "Volume Yield",
             render: (val: number) => (
-                <div className={`font-black text-lg tracking-tighter text-emerald-600`}>
+                <div className="font-black text-lg tracking-tighter text-emerald-600">
                     +{val}
                 </div>
             )
         },
         {
-            key: "date",
-            label: "Logistical Stamp",
+            key: "stockDate",
+            label: "Entry Stamp",
             render: (val: string) => (
                 <div className="flex items-center gap-2">
                     <Calendar size={12} className="text-gray-300" />
                     <span className="text-xs font-black text-gray-600">{new Date(val).toLocaleDateString()}</span>
                 </div>
+            )
+        },
+        {
+            key: "netAmount",
+            label: "Fiscal Value",
+            render: (val: number) => (
+                <span className="text-xs font-black text-indigo-900">₹{val?.toLocaleString()}</span>
             )
         }
     ]
@@ -214,7 +219,12 @@ export default function AddItemStockPage() {
                             <CardContent className="p-10 space-y-8">
                                 <div className="space-y-2">
                                     <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Target Asset <span className="text-rose-500">*</span></Label>
-                                    <Select value={form.itemId} onValueChange={(v) => setForm({ ...form, itemId: v })}>
+                                    <Select value={form.itemId} onValueChange={(v) => {
+                                        setForm({ ...form, itemId: v })
+                                        // Auto-set price from master if available
+                                        const selected = items.find(i => i._id === v)
+                                        if (selected) setPrice(selected.purchasePrice || 0)
+                                    }}>
                                         <SelectTrigger className="bg-gray-50/50 border-none ring-1 ring-gray-100 h-14 rounded-2xl focus:ring-indigo-500 font-black">
                                             <SelectValue placeholder="Identify Resource" />
                                         </SelectTrigger>
@@ -252,30 +262,28 @@ export default function AddItemStockPage() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center px-2">
-                                        <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Accrual volume <span className="text-rose-500">*</span></Label>
-                                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Available Buffer: {items.find((i: any) => i._id === form.itemId)?.quantity || 0}</span>
-                                    </div>
-                                    <div className="flex items-center bg-gray-50/50 rounded-2xl ring-1 ring-gray-100 overflow-hidden h-14 group focus-within:ring-indigo-500 transition-all">
-                                        <Button
-                                            onClick={() => setQuantity(Math.max(0, quantity - 1))}
-                                            variant="ghost" className="h-full w-14 rounded-none border-r border-gray-100 hover:bg-gray-100 text-gray-400"
-                                        >
-                                            <Minus size={16} />
-                                        </Button>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center px-2">
+                                            <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Volume <span className="text-rose-500">*</span></Label>
+                                        </div>
                                         <Input
                                             type="number"
                                             value={quantity}
                                             onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                                            className="h-full border-none bg-transparent rounded-none text-center font-black text-lg focus-visible:ring-0"
+                                            className="bg-gray-50/50 border-none ring-1 ring-gray-100 h-14 rounded-2xl focus:ring-indigo-500 font-black text-center"
                                         />
-                                        <Button
-                                            onClick={() => setQuantity(quantity + 1)}
-                                            variant="ghost" className="h-full w-14 rounded-none border-l border-gray-100 hover:bg-gray-100 text-gray-400"
-                                        >
-                                            <Plus size={16} />
-                                        </Button>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center px-2">
+                                            <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Price (₹) <span className="text-rose-500">*</span></Label>
+                                        </div>
+                                        <Input
+                                            type="number"
+                                            value={price}
+                                            onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                                            className="bg-gray-50/50 border-none ring-1 ring-gray-100 h-14 rounded-2xl focus:ring-indigo-500 font-black text-center text-indigo-900"
+                                        />
                                     </div>
                                 </div>
 
@@ -303,36 +311,14 @@ export default function AddItemStockPage() {
 
                     {/* Accrual Ledger Panel */}
                     <div className="xl:col-span-8 space-y-8">
-                        <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
-                            <div className="relative flex-1 max-w-md group">
-                                <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-300 group-focus-within:text-indigo-600 transition-colors" />
-                                <Input
-                                    className="pl-16 h-16 bg-white border-none ring-1 ring-black/5 shadow-2xl rounded-[1.5rem] focus:ring-2 focus:ring-indigo-500/20 text-lg font-medium"
-                                    placeholder="Query accrual ledger..."
-                                />
-                            </div>
-                        </div>
-
                         <div className="animate-in fade-in slide-in-from-bottom-10 duration-1000">
                             <AdvancedTable
                                 title="Validated Accrual Matrix"
                                 columns={columns}
-                                data={movements}
+                                data={stocks}
                                 loading={fetching}
                                 pagination
                             />
-                        </div>
-
-                        <div className="bg-gray-50/50 p-8 rounded-[3rem] border border-gray-100 border-dashed flex flex-col md:flex-row items-center justify-between gap-8">
-                            <div className="flex items-center gap-6 text-gray-900">
-                                <div className="h-14 w-14 bg-white rounded-2xl flex items-center justify-center shadow-xl border border-gray-100">
-                                    <Printer size={28} className="text-gray-400" />
-                                </div>
-                                <div>
-                                    <p className="font-black text-lg uppercase tracking-tight">Accrual Audit Ready</p>
-                                    <p className="text-gray-400 font-medium text-sm">Ledger entries are cryptographically synced with the institutional supply chain grid.</p>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>

@@ -135,7 +135,7 @@ export default function IncomeList() {
       render: (value: number) => (
         <div className="flex items-center gap-1">
           <DollarSign className="h-4 w-4 text-emerald-600" />
-          <span className="font-bold text-emerald-700">₹{value.toLocaleString()}</span>
+          <span className="font-bold text-emerald-700">₹{(value || 0).toLocaleString()}</span>
         </div>
       )
     }

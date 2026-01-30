@@ -146,7 +146,7 @@ export default function IncomeHead() {
       render: (value: number) => (
         <div className="flex items-center gap-2">
           <DollarSign className="h-4 w-4 text-violet-600" />
-          <span className="font-bold text-violet-700 text-base">₹{value.toLocaleString()}</span>
+          <span className="font-bold text-violet-700 text-base">₹{(value || 0).toLocaleString()}</span>
         </div>
       )
     },

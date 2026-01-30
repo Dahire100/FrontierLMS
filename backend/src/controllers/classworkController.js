@@ -42,6 +42,7 @@ exports.createClasswork = async (req, res) => {
             .populate('classId', 'name section');
 
         res.status(201).json({
+            success: true,
             message: 'Classwork created successfully',
             data: populatedClasswork
         });
@@ -72,10 +73,12 @@ exports.getAllClasswork = async (req, res) => {
         const count = await Classwork.countDocuments(query);
 
         res.json({
+            success: true,
             classwork,
             totalPages: Math.ceil(count / limit),
             currentPage: page,
-            total: count
+            total: count,
+            data: classwork // standardizing 'data' property
         });
     } catch (err) {
         console.error('Error fetching classwork:', err);
@@ -98,7 +101,7 @@ exports.getClassworkById = async (req, res) => {
             return res.status(404).json({ error: 'Classwork not found' });
         }
 
-        res.json(classwork);
+        res.json({ success: true, data: classwork });
     } catch (err) {
         console.error('Error fetching classwork:', err);
         res.status(500).json({ error: 'Failed to fetch classwork' });
@@ -124,7 +127,7 @@ exports.updateClasswork = async (req, res) => {
             return res.status(404).json({ error: 'Classwork not found' });
         }
 
-        res.json({ message: 'Classwork updated successfully', data: classwork });
+        res.json({ success: true, message: 'Classwork updated successfully', data: classwork });
     } catch (err) {
         console.error('Error updating classwork:', err);
         res.status(500).json({ error: 'Failed to update classwork' });
@@ -143,7 +146,7 @@ exports.deleteClasswork = async (req, res) => {
             return res.status(404).json({ error: 'Classwork not found' });
         }
 
-        res.json({ message: 'Classwork deleted successfully' });
+        res.json({ success: true, message: 'Classwork deleted successfully' });
     } catch (err) {
         console.error('Error deleting classwork:', err);
         res.status(500).json({ error: 'Failed to delete classwork' });

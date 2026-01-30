@@ -9,6 +9,11 @@ const itemIssueController = require('../controllers/itemIssueController');
 const itemSaleController = require('../controllers/itemSaleController');
 const itemSetController = require('../controllers/itemSetController');
 const workOrderController = require('../controllers/workOrderController');
+const itemStockController = require('../controllers/itemStockController');
+const soldItemPaymentController = require('../controllers/soldItemPaymentController');
+const stockInOutController = require('../controllers/stockInOutController');
+const vendorController = require('../controllers/vendorController');
+const workOrderPaymentController = require('../controllers/workOrderPaymentController');
 const { authenticateToken } = require('../middleware/auth');
 
 router.use(authenticateToken);
@@ -54,6 +59,39 @@ router.get('/suppliers', itemSupplierController.getSuppliers);
 router.post('/suppliers', itemSupplierController.createSupplier);
 router.put('/suppliers/:id', itemSupplierController.updateSupplier);
 router.delete('/suppliers/:id', itemSupplierController.deleteSupplier);
+
+// Item Stock (Add Item Stock)
+router.get('/stocks', itemStockController.getStocks);
+router.post('/stocks', itemStockController.addStock);
+router.get('/stocks/:id', itemStockController.getStockById);
+router.put('/stocks/:id', itemStockController.updateStock);
+router.delete('/stocks/:id', itemStockController.deleteStock);
+
+// Sold Item Payment
+router.get('/sold-payments', soldItemPaymentController.getPayments);
+router.post('/sold-payments', soldItemPaymentController.createPayment);
+router.get('/sold-payments/:id', soldItemPaymentController.getPaymentById);
+router.put('/sold-payments/:id', soldItemPaymentController.updatePayment);
+router.delete('/sold-payments/:id', soldItemPaymentController.deletePayment);
+
+// Stock In/Out
+router.get('/transactions', stockInOutController.getTransactions);
+router.post('/transactions', stockInOutController.createTransaction);
+router.get('/transactions/:id', stockInOutController.getTransactionById);
+
+// Vendor Management
+router.get('/vendors', vendorController.getVendors);
+router.post('/vendors', vendorController.createVendor);
+router.get('/vendors/:id', vendorController.getVendorById);
+router.put('/vendors/:id', vendorController.updateVendor);
+router.delete('/vendors/:id', vendorController.deleteVendor);
+
+// Work Order Payment
+router.get('/workorder-payments', workOrderPaymentController.getPayments);
+router.post('/workorder-payments', workOrderPaymentController.createPayment);
+router.get('/workorder-payments/:id', workOrderPaymentController.getPaymentById);
+router.put('/workorder-payments/:id', workOrderPaymentController.updatePayment);
+router.delete('/workorder-payments/:id', workOrderPaymentController.deletePayment);
 
 // Inventory Master
 router.post('/', inventoryController.createInventoryItem);

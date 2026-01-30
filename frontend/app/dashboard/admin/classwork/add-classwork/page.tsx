@@ -29,7 +29,8 @@ export default function AddClasswork() {
         assignedDate: new Date().toISOString().split('T')[0],
         dueDate: "",
         description: "",
-        maxMarks: "100"
+        maxMarks: "100",
+        attachments: [] as any[]
     })
 
     useEffect(() => {
@@ -43,7 +44,9 @@ export default function AddClasswork() {
                 headers: { "Authorization": `Bearer ${token}` }
             })
             const data = await res.json()
-            if (data && Array.isArray(data)) {
+            if (data.success && Array.isArray(data.data)) {
+                setClasses(data.data)
+            } else if (Array.isArray(data)) {
                 setClasses(data)
             }
         } catch (err) {
@@ -55,27 +58,50 @@ export default function AddClasswork() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!form.title || !form.classId || !form.subject || !form.assignedDate) {
-            toast.error("Please fill required fields")
+        console.log("Submitting Classwork Form...", form)
+
+        const missingFields = []
+        if (!form.title) missingFields.push("Title")
+        if (!form.classId) missingFields.push("Class")
+        if (!form.subject) missingFields.push("Subject")
+        if (!form.assignedDate) missingFields.push("Assigned Date")
+        if (!form.description) missingFields.push("Description")
+
+        if (missingFields.length > 0) {
+            console.error("Validation Failed. Missing fields:", missingFields)
+            toast.error(`Please fill: ${missingFields.join(", ")}`)
             return
         }
 
         setSaving(true)
         try {
             const token = localStorage.getItem("token")
+
+            // Prepare payload
+            const payload: any = {
+                ...form,
+                maxMarks: parseInt(form.maxMarks) || 0
+            }
+
+            // Remove empty due date to avoid Mongoose casting error
+            if (!payload.dueDate) {
+                delete payload.dueDate
+            }
+
+            console.log("Sending Payload to Backend:", payload)
+
             const res = await fetch(`${API_URL}/api/classwork`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    ...form,
-                    maxMarks: parseInt(form.maxMarks) || 0
-                })
+                body: JSON.stringify(payload)
             })
 
             const data = await res.json()
+            console.log("Backend Response:", data)
+
             if (data.success) {
                 toast.success("Classwork created successfully")
                 setForm({
@@ -85,12 +111,15 @@ export default function AddClasswork() {
                     assignedDate: new Date().toISOString().split('T')[0],
                     dueDate: "",
                     description: "",
-                    maxMarks: "100"
+                    maxMarks: "100",
+                    attachments: []
                 })
             } else {
+                console.error("Backend Error:", data.error)
                 toast.error(data.error || "Failed to create classwork")
             }
         } catch (err) {
+            console.error("Network/Submission Error:", err)
             toast.error("Failed to create classwork")
         } finally {
             setSaving(false)
@@ -170,6 +199,7 @@ export default function AddClasswork() {
                                     className="bg-white border-gray-200"
                                 />
                             </div>
+
                             <div className="md:col-span-2 space-y-2">
                                 <Label>Description</Label>
                                 <Textarea
@@ -180,6 +210,21 @@ export default function AddClasswork() {
                                     placeholder="Describe the classwork activity..."
                                 />
                             </div>
+
+                            <div className="md:col-span-2">
+                                <AttachmentUpload onUpload={(file) => setForm(prev => ({ ...prev, attachments: [...(prev.attachments || []), file] }))} />
+                                {form.attachments && form.attachments.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                        <Label className="text-xs text-green-600 font-bold">Attached Files:</Label>
+                                        <ul className="text-sm text-gray-600 list-disc pl-5">
+                                            {form.attachments.map((file: any, index: number) => (
+                                                <li key={index}>{file.filename}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="md:col-span-2 flex justify-end">
                                 <Button type="submit" disabled={saving} className="bg-blue-900 hover:bg-blue-800 px-8">
                                     {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -191,5 +236,60 @@ export default function AddClasswork() {
                 </Card>
             </div>
         </DashboardLayout>
+    )
+}
+
+function AttachmentUpload({ onUpload }: { onUpload: (file: any) => void }) {
+    const [uploading, setUploading] = useState(false)
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        const formData = new FormData()
+        formData.append('file', file)
+
+        setUploading(true)
+        try {
+            const token = localStorage.getItem("token")
+            const res = await fetch(`${API_URL}/api/upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            })
+            const data = await res.json()
+
+            if (data.success) {
+                onUpload({
+                    filename: data.file.filename,
+                    url: data.file.url,
+                    uploadedAt: new Date()
+                })
+                toast.success("File attached successfully")
+            } else {
+                toast.error("Upload failed")
+            }
+        } catch (err) {
+            toast.error("Upload error")
+        } finally {
+            setUploading(false)
+        }
+    }
+
+    return (
+        <div className="space-y-2">
+            <Label>Attachments (Optional)</Label>
+            <div className="flex items-center gap-2">
+                <Input
+                    type="file"
+                    onChange={handleFileChange}
+                    disabled={uploading}
+                    className="bg-white border-gray-200"
+                />
+                {uploading && <Loader2 className="h-4 w-4 animate-spin text-blue-600" />}
+            </div>
+        </div>
     )
 }

@@ -388,17 +388,7 @@ export const navigationByRole: Record<UserRole, NavItem[]> = {
         { label: "Classwork Report", href: "/dashboard/admin/classwork/classwork-report" },
       ]
     },
-    {
-      label: "H.W. / C.W.",
-      href: "/dashboard/admin/hw-cw/add-homework",
-      subItems: [
-        { label: "Add Homework", href: "/dashboard/admin/hw-cw/add-homework" },
-        { label: "Add Classwork", href: "/dashboard/admin/hw-cw/add-classwork" },
-        { label: "Evaluation Report C.W", href: "/dashboard/admin/hw-cw/evaluation-report-cw" },
-        { label: "Evaluation Report H.W.", href: "/dashboard/admin/hw-cw/evaluation-report-hw" },
-        { label: "Unassigned Report", href: "/dashboard/admin/hw-cw/unassigned-report" },
-      ],
-    },
+
     {
       label: "Communicate",
       href: "/dashboard/admin/communicate/notice-board",

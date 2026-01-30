@@ -139,6 +139,47 @@ exports.updateHomework = async (req, res) => {
   }
 };
 
+// Add attachment to homework
+exports.addAttachment = async (req, res) => {
+  try {
+    const { schoolId } = req.user;
+    const { id } = req.params;
+    const { attachment } = req.body;
+
+    if (!attachment || !attachment.filename || !attachment.url) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid attachment data'
+      });
+    }
+
+    const homework = await Homework.findOneAndUpdate(
+      { _id: id, schoolId },
+      { $push: { attachments: attachment } },
+      { new: true }
+    );
+
+    if (!homework) {
+      return res.status(404).json({
+        success: false,
+        error: 'Homework not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Attachment added successfully',
+      data: homework
+    });
+  } catch (err) {
+    console.error('Error adding attachment:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add attachment'
+    });
+  }
+};
+
 // Submit homework (for students)
 exports.submitHomework = async (req, res) => {
   try {

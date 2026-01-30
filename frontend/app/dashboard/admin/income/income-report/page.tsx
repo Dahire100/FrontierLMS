@@ -176,7 +176,7 @@ export default function IncomeReport() {
                         />
                         <StatCard
                             title="Cumulative Revenue"
-                            value={`₹${stats.totalAmount.toLocaleString()}`}
+                            value={`₹${(stats.totalAmount || 0).toLocaleString()}`}
                             icon={DollarSign}
                             iconColor="text-emerald-600"
                             iconBgColor="bg-emerald-50"
@@ -207,7 +207,7 @@ export default function IncomeReport() {
                                             <TableRow key={row.head}>
                                                 <TableCell className="font-medium text-gray-900">{row.head}</TableCell>
                                                 <TableCell className="text-right text-gray-700">{row.count}</TableCell>
-                                                <TableCell className="text-right font-bold text-emerald-700">₹{row.amount.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right font-bold text-emerald-700">₹{(row.amount || 0).toLocaleString()}</TableCell>
                                                 <TableCell className="text-right text-indigo-600 font-semibold">
                                                     {((row.amount / stats.totalAmount) * 100).toFixed(1)}%
                                                 </TableCell>
@@ -216,7 +216,7 @@ export default function IncomeReport() {
                                         <TableRow className="bg-gray-50 font-bold">
                                             <TableCell>TOTAL</TableCell>
                                             <TableCell className="text-right">{stats.totalEntries}</TableCell>
-                                            <TableCell className="text-right text-emerald-700">₹{stats.totalAmount.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right text-emerald-700">₹{(stats.totalAmount || 0).toLocaleString()}</TableCell>
                                             <TableCell className="text-right">100%</TableCell>
                                         </TableRow>
                                     </TableBody>

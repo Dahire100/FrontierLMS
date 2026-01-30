@@ -15,22 +15,15 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import {
-    Pencil,
-    List,
-    Download,
-    FileText,
-    Printer,
-    Grid,
-    Columns,
     CreditCard,
     Search,
     RefreshCcw,
-    Calendar,
     DollarSign,
     ShieldCheck,
     Loader2,
-    Database,
-    Tag
+    Tag,
+    Calendar,
+    Briefcase
 } from "lucide-react"
 import { toast } from "sonner"
 import { AdvancedTable } from "@/components/super-admin/advanced-table"
@@ -38,6 +31,7 @@ import { API_URL } from "@/lib/api-config"
 
 export default function WorkOrderPaymentPage() {
     const [workOrders, setWorkOrders] = useState<any[]>([])
+    const [payments, setPayments] = useState<any[]>([])
     const [fetching, setFetching] = useState(true)
     const [loading, setLoading] = useState(false)
     const [searchTerm, setSearchTerm] = useState("")
@@ -46,6 +40,7 @@ export default function WorkOrderPaymentPage() {
         workOrderId: "",
         amount: 0,
         paymentMode: "cash",
+        paymentType: "partial",
         date: new Date().toISOString().split('T')[0],
         description: ""
     })
@@ -56,10 +51,16 @@ export default function WorkOrderPaymentPage() {
             const token = localStorage.getItem("token")
             const headers = { "Authorization": `Bearer ${token}` }
 
-            const res = await fetch(`${API_URL}/api/inventory/workorders`, { headers })
-            const data = await res.json()
+            const [woRes, payRes] = await Promise.all([
+                fetch(`${API_URL}/api/inventory/workorders`, { headers }),
+                fetch(`${API_URL}/api/inventory/workorder-payments`, { headers })
+            ])
 
-            if (Array.isArray(data)) setWorkOrders(data)
+            const woData = await woRes.json()
+            const payData = await payRes.json()
+
+            if (Array.isArray(woData)) setWorkOrders(woData)
+            if (Array.isArray(payData)) setPayments(payData)
 
         } catch (error) {
             console.error(error)
@@ -75,36 +76,66 @@ export default function WorkOrderPaymentPage() {
 
     const handlePayment = async () => {
         const order = workOrders.find(wo => wo._id === paymentForm.workOrderId)
-        if (!order) return
+        if (!order) {
+            toast.error("Invalid Target Order")
+            return
+        }
 
         if (paymentForm.amount <= 0 || !paymentForm.workOrderId) {
             toast.error("Disbursement volume and target order are required")
             return
         }
 
+        // Map 'online' to backend-supported enum 'bank-transfer'
+        const paymentMethod = paymentForm.paymentMode === 'online' ? 'bank-transfer' : paymentForm.paymentMode
+
+        const vendorId = order.vendor?._id || order.vendor
+        if (!vendorId) {
+            toast.error("Associated vendor data is missing")
+            return
+        }
+
         try {
             setLoading(true)
             const token = localStorage.getItem("token")
-            const res = await fetch(`${API_URL}/api/inventory/workorders/${paymentForm.workOrderId}`, {
-                method: "PUT",
+
+            // Post to WorkOrderPayment endpoint
+            const res = await fetch(`${API_URL}/api/inventory/workorder-payments`, {
+                method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    paidAmount: (order.paidAmount || 0) + Number(paymentForm.amount),
-                    balanceAmount: Math.max(0, order.grandTotal - (order.paidAmount || 0) - Number(paymentForm.amount)),
-                    paymentStatus: (order.paidAmount || 0) + Number(paymentForm.amount) >= order.grandTotal ? 'paid' : 'partial'
+                    workOrder: paymentForm.workOrderId,
+                    vendor: vendorId,
+                    amount: Number(paymentForm.amount),
+                    netAmount: Number(paymentForm.amount), // Assuming no deductions for now
+                    paymentMethod,
+                    paymentType: paymentForm.paymentType || 'partial',
+                    paymentDate: paymentForm.date,
+                    notes: paymentForm.description,
+                    status: 'completed',
+                    paymentNumber: `PAY-${Date.now()}` // Use full timestamp to avoid collision
                 })
             })
 
-            if (!res.ok) throw new Error("Failed to commit disbursement")
+            let result;
+            try {
+                result = await res.json()
+            } catch (e) {
+                console.error("Non-JSON response:", res.status, res.statusText)
+                throw new Error(`Server Error: ${res.status} ${res.statusText}`)
+            }
+
+            if (!res.ok) throw new Error(result.error || "Failed to commit disbursement")
 
             toast.success("Disbursement yield synchronized with procurement node")
-            setPaymentForm({ workOrderId: "", amount: 0, paymentMode: "cash", date: new Date().toISOString().split('T')[0], description: "" })
+            setPaymentForm({ workOrderId: "", amount: 0, paymentMode: "cash", paymentType: "partial", date: new Date().toISOString().split('T')[0], description: "" })
             fetchData()
         } catch (error: any) {
-            toast.error(error.message)
+            console.error("Payment Error:", error)
+            toast.error(error.message || "Disbursement failed. Check inputs.")
         } finally {
             setLoading(false)
         }
@@ -114,46 +145,59 @@ export default function WorkOrderPaymentPage() {
 
     const columns = [
         {
-            key: "workOrderNumber",
+            key: "workOrder",
             label: "Order Ref",
-            render: (val: string) => (
-                <div className="font-black text-indigo-900 tracking-tighter uppercase">{val}</div>
-            )
-        },
-        {
-            key: "paidAmount",
-            label: "Disbursed",
-            render: (val: number) => (
-                <div className="font-black text-emerald-600">₹{val?.toLocaleString()}</div>
-            )
-        },
-        {
-            key: "balanceAmount",
-            label: "Deficit",
-            render: (val: number) => (
-                <div className="font-black text-rose-600 bg-rose-50 px-3 py-1 rounded-lg w-fit border border-rose-100 italic">
-                    ₹{val?.toLocaleString()}
+            render: (val: any) => (
+                <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                        <Briefcase size={14} />
+                    </div>
+                    <div>
+                        <div className="font-black text-indigo-900 tracking-tighter uppercase">{val?.workOrderNumber}</div>
+                        <div className="text-[9px] text-gray-500 uppercase font-bold">{val?.title}</div>
+                    </div>
                 </div>
             )
         },
         {
-            key: "grandTotal",
-            label: "Valuation",
-            render: (val: number) => (
-                <div className="font-black text-gray-500">₹{val?.toLocaleString()}</div>
+            key: "vendor",
+            label: "Stakeholder",
+            render: (val: any) => (
+                <span className="text-xs font-bold text-gray-600 uppercase">{val?.vendorName || val?.name || 'Unknown'}</span>
             )
         },
         {
-            key: "paymentStatus",
-            label: "Fiscal State",
+            key: "amount",
+            label: "Disbursed",
+            render: (val: number) => (
+                <div className="font-black text-emerald-600 text-lg">₹{val?.toLocaleString()}</div>
+            )
+        },
+        {
+            key: "paymentMethod",
+            label: "Protocol",
             render: (val: string) => (
-                <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${val === 'paid' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'
-                    }`}>
-                    {val || 'pending'}
+                <span className="px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-[10px] font-black uppercase tracking-widest border border-gray-200">
+                    {val}
                 </span>
+            )
+        },
+        {
+            key: "paymentDate",
+            label: "Fiscal Stamp",
+            render: (val: string) => (
+                <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
+                    <Calendar size={12} />
+                    {new Date(val).toLocaleDateString()}
+                </div>
             )
         }
     ]
+
+    const filteredPayments = payments.filter((p: any) =>
+        p.workOrder?.workOrderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.vendor?.vendorName?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
 
     return (
         <DashboardLayout title="Fiscal Logistics: Procurement Disbursement">
@@ -193,7 +237,7 @@ export default function WorkOrderPaymentPage() {
                                             <SelectValue placeholder="Identify Active Order" />
                                         </SelectTrigger>
                                         <SelectContent className="rounded-2xl border-none shadow-2xl p-2">
-                                            {workOrders.map((wo: any) => (
+                                            {workOrders.filter(wo => wo.balanceAmount > 0).map((wo: any) => (
                                                 <SelectItem key={wo._id} value={wo._id} className="rounded-xl font-bold py-2.5 uppercase">{wo.workOrderNumber} ({wo.title})</SelectItem>
                                             ))}
                                         </SelectContent>
@@ -243,6 +287,19 @@ export default function WorkOrderPaymentPage() {
                                             </Select>
                                         </div>
                                         <div className="space-y-3">
+                                            <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Type</Label>
+                                            <Select value={paymentForm.paymentType} onValueChange={(v) => setPaymentForm({ ...paymentForm, paymentType: v })}>
+                                                <SelectTrigger className="bg-gray-50/50 border-none ring-1 ring-gray-100 h-14 rounded-2xl focus:ring-indigo-500 font-bold">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent className="rounded-2xl border-none shadow-2xl p-2 text-xs">
+                                                    <SelectItem value="advance" className="rounded-xl font-bold py-2.5">ADVANCE</SelectItem>
+                                                    <SelectItem value="partial" className="rounded-xl font-bold py-2.5">PARTIAL</SelectItem>
+                                                    <SelectItem value="final" className="rounded-xl font-bold py-2.5">FINAL</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-3">
                                             <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Date</Label>
                                             <Input value={paymentForm.date} onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })} type="date" className="bg-gray-50/50 border-none ring-1 ring-gray-100 h-14 px-5 rounded-2xl focus:ring-indigo-500 font-black" />
                                         </div>
@@ -277,7 +334,7 @@ export default function WorkOrderPaymentPage() {
                             <AdvancedTable
                                 title="Validated Disbursement Matrix"
                                 columns={columns}
-                                data={workOrders}
+                                data={filteredPayments}
                                 loading={fetching}
                                 pagination
                             />

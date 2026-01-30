@@ -55,7 +55,9 @@ export default function PassbookView() {
             })
             const data = await response.json()
 
-            if (data.success) {
+            if (data.accounts) {
+                setBanks(data.accounts)
+            } else if (data.success && data.data) {
                 setBanks(data.data)
             }
         } catch (error) {
@@ -288,8 +290,8 @@ export default function PassbookView() {
                                                     <TableCell>{new Date(row.date).toLocaleDateString()}</TableCell>
                                                     <TableCell>
                                                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${row.type === "credit"
-                                                                ? "bg-green-100 text-green-800"
-                                                                : "bg-red-100 text-red-800"
+                                                            ? "bg-green-100 text-green-800"
+                                                            : "bg-red-100 text-red-800"
                                                             }`}>
                                                             {row.type.toUpperCase()}
                                                         </span>

@@ -31,7 +31,7 @@ export default function BankList() {
             const res = await apiFetch(`${API_ENDPOINTS.BANK_ACCOUNTS}?${params.toString()}`)
             if (res.ok) {
                 const data = await res.json()
-                setBanks(data.data || [])
+                setBanks(data.accounts || [])
             }
         } catch (error) {
             toast.error("Failed to load bank accounts")

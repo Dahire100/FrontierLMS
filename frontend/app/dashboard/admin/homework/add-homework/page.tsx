@@ -31,7 +31,8 @@ export default function AddHomework() {
         subject: "",
         dueDate: "",
         description: "",
-        totalMarks: "100"
+        totalMarks: "100",
+        attachments: [] as any[]
     })
 
     useEffect(() => {
@@ -45,7 +46,9 @@ export default function AddHomework() {
                 headers: { "Authorization": `Bearer ${token}` }
             })
             const data = await res.json()
-            if (data && Array.isArray(data)) {
+            if (data.success && Array.isArray(data.data)) {
+                setClasses(data.data)
+            } else if (Array.isArray(data)) {
                 setClasses(data)
             }
         } catch (err) {
@@ -71,13 +74,16 @@ export default function AddHomework() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(form)
+                body: JSON.stringify({
+                    ...form,
+                    totalMarks: parseInt(form.totalMarks) || 0
+                })
             })
 
             const data = await res.json()
             if (data.success) {
                 toast.success("Homework created successfully")
-                setForm({ title: "", classId: "", subject: "", dueDate: "", description: "", totalMarks: "100" })
+                setForm({ title: "", classId: "", subject: "", dueDate: "", description: "", totalMarks: "100", attachments: [] })
             } else {
                 toast.error(data.error || "Failed to create homework")
             }
@@ -152,6 +158,7 @@ export default function AddHomework() {
                                     className="bg-white border-gray-200"
                                 />
                             </div>
+
                             <div className="md:col-span-2 space-y-2">
                                 <Label>Description</Label>
                                 <Textarea
@@ -159,8 +166,24 @@ export default function AddHomework() {
                                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                                     rows={3}
                                     className="bg-white border-gray-200"
+                                    placeholder="Homework description..."
                                 />
                             </div>
+
+                            <div className="md:col-span-2">
+                                <AttachmentUpload onUpload={(file) => setForm(prev => ({ ...prev, attachments: [...(prev.attachments || []), file] }))} />
+                                {form.attachments && form.attachments.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                        <Label className="text-xs text-green-600 font-bold">Attached Files:</Label>
+                                        <ul className="text-sm text-gray-600 list-disc pl-5">
+                                            {form.attachments.map((file: any, index: number) => (
+                                                <li key={index}>{file.filename}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="md:col-span-2 flex justify-end">
                                 <Button type="submit" disabled={saving} className="bg-blue-900 hover:bg-blue-800">
                                     {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -172,6 +195,61 @@ export default function AddHomework() {
                 </Card>
             </div>
         </DashboardLayout>
+    )
+}
+
+function AttachmentUpload({ onUpload }: { onUpload: (file: any) => void }) {
+    const [uploading, setUploading] = useState(false)
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        const formData = new FormData()
+        formData.append('file', file)
+
+        setUploading(true)
+        try {
+            const token = localStorage.getItem("token")
+            const res = await fetch(`${API_URL}/api/upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            })
+            const data = await res.json()
+
+            if (data.success) {
+                onUpload({
+                    filename: data.file.filename,
+                    url: data.file.url,
+                    uploadedAt: new Date()
+                })
+                toast.success("File attached successfully")
+            } else {
+                toast.error("Upload failed")
+            }
+        } catch (err) {
+            toast.error("Upload error")
+        } finally {
+            setUploading(false)
+        }
+    }
+
+    return (
+        <div className="space-y-2">
+            <Label>Attachments (Optional)</Label>
+            <div className="flex items-center gap-2">
+                <Input
+                    type="file"
+                    onChange={handleFileChange}
+                    disabled={uploading}
+                    className="bg-white border-gray-200"
+                />
+                {uploading && <Loader2 className="h-4 w-4 animate-spin text-blue-600" />}
+            </div>
+        </div>
     )
 }
 

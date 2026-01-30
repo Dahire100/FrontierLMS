@@ -19,15 +19,12 @@ import {
   Package,
   ArrowUpCircle,
   ArrowDownCircle,
-  FileText,
-  Calendar,
   RefreshCcw,
   Database,
   Search,
-  Filter,
   Loader2,
-  Barcode,
-  Layers
+  Layers,
+  Calendar
 } from "lucide-react"
 import { toast } from "sonner"
 import { AdvancedTable } from "@/components/super-admin/advanced-table"
@@ -35,8 +32,9 @@ import { API_URL } from "@/lib/api-config"
 
 export default function StockInOut() {
   const [items, setItems] = useState<any[]>([])
-  const [movements, setMovements] = useState<any[]>([])
-  const [form, setForm] = useState({ itemId: "", type: "purchase", quantity: "", notes: "", date: new Date().toISOString().split('T')[0] })
+  const [stores, setStores] = useState<any[]>([])
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [form, setForm] = useState({ itemId: "", storeId: "", type: "purchase", quantity: "", notes: "", date: new Date().toISOString().split('T')[0] })
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -47,23 +45,19 @@ export default function StockInOut() {
       const token = localStorage.getItem("token")
       const headers = { "Authorization": `Bearer ${token}` }
 
-      const res = await fetch(`${API_URL}/api/inventory?limit=100`, { headers })
-      const data = await res.json()
+      const [itemsRes, storesRes, transRes] = await Promise.all([
+        fetch(`${API_URL}/api/inventory?limit=100`, { headers }),
+        fetch(`${API_URL}/api/inventory/stores`, { headers }),
+        fetch(`${API_URL}/api/inventory/transactions`, { headers })
+      ])
 
-      if (data.items) {
-        setItems(data.items)
-        // Extract transactions for the movement matrix
-        const allTransactions = data.items.flatMap((item: any) =>
-          item.transactions.map((t: any) => ({
-            ...t,
-            itemName: item.itemName,
-            itemCode: item.itemCode,
-            _id: `${item._id}-${t._id}`
-          }))
-        ).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      const itemsData = await itemsRes.json()
+      const storesData = await storesRes.json()
+      const transData = await transRes.json()
 
-        setMovements(allTransactions)
-      }
+      if (itemsData.items) setItems(itemsData.items)
+      if (Array.isArray(storesData)) setStores(storesData)
+      if (Array.isArray(transData)) setTransactions(transData)
     } catch (error) {
       console.error(error)
       toast.error("Failed to sync logistical matrix")
@@ -78,25 +72,45 @@ export default function StockInOut() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.itemId || !form.type || !form.quantity || !form.date) {
-      toast.error("Resource descriptor, vector type, and operational metrics are required")
+    if (!form.itemId || !form.storeId || !form.type || !form.quantity || !form.date) {
+      toast.error("Resource descriptor, store, vector type, and operational metrics are required")
       return
     }
 
     try {
       setLoading(true)
       const token = localStorage.getItem("token")
-      const res = await fetch(`${API_URL}/api/inventory/${form.itemId}/transaction`, {
+
+      // Map Type to Backend Fields
+      let transactionType = 'in';
+      let reason = 'purchase';
+
+      switch (form.type) {
+        case 'purchase': transactionType = 'in'; reason = 'purchase'; break;
+        case 'issue': transactionType = 'out'; reason = 'transfer'; break; // Assuming issue implies transfer/consumption
+        case 'return': transactionType = 'in'; reason = 'return'; break;
+        case 'damaged': transactionType = 'out'; reason = 'damage'; break;
+        default: transactionType = 'in'; reason = 'other';
+      }
+
+      // If 'issue', we might map it to 'manual' or 'transfer' depending on business logic. 
+      // 'reason' enum: ['purchase', 'return', 'adjustment', 'transfer', 'damage', 'loss', 'expired', 'donation', 'other']
+
+      const res = await fetch(`${API_URL}/api/inventory/transactions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          type: form.type,
+          item: form.itemId,
+          store: form.storeId,
+          transactionType,
+          reason,
           quantity: Number(form.quantity),
           notes: form.notes,
-          date: form.date
+          transactionDate: form.date,
+          transactionNumber: `KV-${Date.now().toString().slice(-6)}` // Auto-gen number for now
         })
       })
 
@@ -115,30 +129,30 @@ export default function StockInOut() {
 
   const columns = [
     {
-      key: "itemName",
+      key: "item",
       label: "Resource Asset",
-      render: (val: string, row: any) => (
+      render: (val: any) => (
         <div className="flex items-center gap-3">
-          <div className={`h-10 w-10 ${['purchase', 'return'].includes(row.type) ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'} rounded-xl flex items-center justify-center shadow-sm border border-current opacity-80`}>
-            <Package size={18} />
+          <div className="h-9 w-9 bg-teal-50 rounded-xl flex items-center justify-center text-teal-600 shadow-sm border border-teal-100">
+            <Package size={16} />
           </div>
           <div>
-            <span className="font-black text-gray-900 tracking-tight uppercase leading-none">{val}</span>
-            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Ref: {row.itemCode}</div>
+            <span className="font-black text-gray-900 tracking-tight uppercase leading-none">{val?.itemName}</span>
+            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Ref: {val?.itemCode}</div>
           </div>
         </div>
       )
     },
     {
-      key: "type",
+      key: "transactionType",
       label: "Vector",
-      render: (val: string) => {
-        const isInflow = ['purchase', 'return'].includes(val)
+      render: (val: string, row: any) => {
+        const isInflow = val === 'in'
         return (
           <div className={`flex items-center gap-2 font-black text-[10px] uppercase tracking-widest py-1.5 px-3 rounded-xl border ${isInflow ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'
             }`}>
             {isInflow ? <ArrowUpCircle size={14} className="text-emerald-500" /> : <ArrowDownCircle size={14} className="text-rose-500" />}
-            {val}
+            {row.reason} ({val})
           </div>
         )
       }
@@ -147,7 +161,7 @@ export default function StockInOut() {
       key: "quantity",
       label: "Volume",
       render: (val: number, row: any) => {
-        const isInflow = ['purchase', 'return'].includes(row.type)
+        const isInflow = row.transactionType === 'in'
         return (
           <div className="flex items-center gap-2">
             <span className={`text-xl font-black ${isInflow ? 'text-emerald-600' : 'text-rose-600'} tracking-tighter`}>{val}</span>
@@ -157,7 +171,7 @@ export default function StockInOut() {
       }
     },
     {
-      key: "date",
+      key: "transactionDate",
       label: "Logistical Stamp",
       render: (val: string) => (
         <div className="flex items-center gap-3">
@@ -168,9 +182,9 @@ export default function StockInOut() {
     }
   ]
 
-  const filteredMovements = movements.filter((m: any) =>
-    m.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.itemCode.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredTransactions = transactions.filter((m: any) =>
+    m.item?.itemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    m.item?.itemCode?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
@@ -219,6 +233,20 @@ export default function StockInOut() {
                     </Select>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Store Node <span className="text-rose-500">*</span></Label>
+                    <Select value={form.storeId} onValueChange={(v) => setForm({ ...form, storeId: v })}>
+                      <SelectTrigger className="bg-gray-50/50 border-none ring-1 ring-gray-100 h-14 rounded-2xl focus:ring-teal-500 font-bold">
+                        <SelectValue placeholder="Target Store" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-none shadow-2xl p-2">
+                        {stores.map((s: any) => (
+                          <SelectItem key={s._id} value={s._id} className="rounded-xl font-bold py-2.5 uppercase">{s.storeName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Vector Type <span className="text-rose-500">*</span></Label>
@@ -235,7 +263,7 @@ export default function StockInOut() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Volume (Units) <span className="text-rose-500">*</span></Label>
+                      <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Volume <span className="text-rose-500">*</span></Label>
                       <Input value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} type="number" placeholder="0" className="bg-gray-50/50 border-none ring-1 ring-gray-100 h-14 rounded-2xl focus:ring-teal-500 font-black text-lg" />
                     </div>
                   </div>
@@ -289,7 +317,7 @@ export default function StockInOut() {
               <AdvancedTable
                 title="Validated Movement Matrix"
                 columns={columns}
-                data={filteredMovements}
+                data={filteredTransactions}
                 loading={fetching}
                 pagination
               />

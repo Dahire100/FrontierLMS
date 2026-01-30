@@ -42,7 +42,11 @@ export default function BonafideCertificate() {
       })
       const data = await response.json()
 
-      if (data.success) {
+      // The students API returns an array directly, not { success: true, data: ... }
+      if (Array.isArray(data)) {
+        setStudents(data)
+      } else if (data.success && Array.isArray(data.data)) {
+        // Fallback in case API changes
         setStudents(data.data)
       }
     } catch (error) {

@@ -36,7 +36,7 @@ import { API_URL } from "@/lib/api-config"
 
 export default function VendorManagement() {
   const [vendors, setVendors] = useState<any[]>([])
-  const [form, setForm] = useState({ supplierName: "", phone: "", email: "", notes: "", supplierCode: "" })
+  const [form, setForm] = useState({ vendorName: "", phone: "", email: "", notes: "", vendorCode: "" })
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -47,7 +47,7 @@ export default function VendorManagement() {
       const token = localStorage.getItem("token")
       const headers = { "Authorization": `Bearer ${token}` }
 
-      const res = await fetch(`${API_URL}/api/inventory/suppliers`, { headers })
+      const res = await fetch(`${API_URL}/api/inventory/vendors`, { headers })
       const data = await res.json()
 
       if (Array.isArray(data)) {
@@ -67,7 +67,7 @@ export default function VendorManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.supplierName || !form.phone || !form.supplierCode) {
+    if (!form.vendorName || !form.phone || !form.vendorCode) {
       toast.error("Stakeholder name, code and credentials are required")
       return
     }
@@ -75,7 +75,7 @@ export default function VendorManagement() {
     try {
       setLoading(true)
       const token = localStorage.getItem("token")
-      const res = await fetch(`${API_URL}/api/inventory/suppliers`, {
+      const res = await fetch(`${API_URL}/api/inventory/vendors`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -88,7 +88,7 @@ export default function VendorManagement() {
       if (!res.ok) throw new Error(result.error || "Failed to initialize induction")
 
       toast.success("Vendor protocol initialized")
-      setForm({ supplierName: "", phone: "", email: "", notes: "", supplierCode: "" })
+      setForm({ vendorName: "", phone: "", email: "", notes: "", vendorCode: "" })
       fetchData()
     } catch (error: any) {
       toast.error(error.message)
@@ -102,7 +102,7 @@ export default function VendorManagement() {
 
     try {
       const token = localStorage.getItem("token")
-      const res = await fetch(`${API_URL}/api/inventory/suppliers/${id}`, {
+      const res = await fetch(`${API_URL}/api/inventory/vendors/${id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       })
@@ -117,7 +117,7 @@ export default function VendorManagement() {
 
   const columns = [
     {
-      key: "supplierName",
+      key: "vendorName",
       label: "Market Stakeholder",
       render: (val: string, row: any) => (
         <div className="flex items-center gap-4">
@@ -126,7 +126,7 @@ export default function VendorManagement() {
           </div>
           <div>
             <span className="font-black text-gray-900 tracking-tight uppercase leading-none">{val}</span>
-            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">ID: {row.supplierCode}</div>
+            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">ID: {row.vendorCode}</div>
           </div>
         </div>
       )
@@ -184,8 +184,8 @@ export default function VendorManagement() {
   ]
 
   const filteredVendors = vendors.filter((v: any) =>
-    v.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.supplierCode.toLowerCase().includes(searchTerm.toLowerCase())
+    v.vendorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    v.vendorCode.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
@@ -225,8 +225,8 @@ export default function VendorManagement() {
                     <div className="relative group">
                       <Factory className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-amber-600 transition-colors" size={16} />
                       <Input
-                        value={form.supplierName}
-                        onChange={(e) => setForm({ ...form, supplierName: e.target.value })}
+                        value={form.vendorName}
+                        onChange={(e) => setForm({ ...form, vendorName: e.target.value })}
                         placeholder="Full legal entity name"
                         className="bg-gray-50/50 border-none ring-1 ring-gray-100 h-14 pl-12 rounded-2xl focus:ring-amber-500 font-bold"
                       />
@@ -235,8 +235,8 @@ export default function VendorManagement() {
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Registry Code <span className="text-rose-500">*</span></Label>
                     <Input
-                      value={form.supplierCode}
-                      onChange={(e) => setForm({ ...form, supplierCode: e.target.value })}
+                      value={form.vendorCode}
+                      onChange={(e) => setForm({ ...form, vendorCode: e.target.value })}
                       placeholder="Unique UID (e.g. VND-505)"
                       className="bg-gray-50/50 border-none ring-1 ring-gray-100 h-14 px-5 rounded-2xl focus:ring-amber-500 font-black text-amber-900"
                     />

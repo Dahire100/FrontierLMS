@@ -9,7 +9,8 @@ const {
   updateHomework,
   submitHomework,
   gradeHomework,
-  deleteHomework
+  deleteHomework,
+  addAttachment
 } = require('../controllers/homeworkController');
 
 // All routes require authentication
@@ -19,6 +20,7 @@ router.get('/', getAllHomework);
 router.get('/:id', getHomeworkById);
 router.post('/', createHomework);
 router.put('/:id', updateHomework);
+router.post('/:id/attachments', addAttachment);
 router.post('/:id/submit', submitHomework);
 router.post('/:id/grade/:studentId', gradeHomework);
 router.delete('/:id', deleteHomework);

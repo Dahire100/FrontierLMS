@@ -36,7 +36,7 @@ import { API_URL } from "@/lib/api-config"
 
 export default function ItemStorePage() {
     const [stores, setStores] = useState<any[]>([])
-    const [form, setForm] = useState({ storeName: "", stockCode: "", description: "" })
+    const [form, setForm] = useState({ storeName: "", storeCode: "", description: "" })
     const [loading, setLoading] = useState(false)
     const [fetching, setFetching] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
@@ -63,7 +63,7 @@ export default function ItemStorePage() {
     }, [fetchData])
 
     const handleSubmit = async () => {
-        if (!form.storeName || !form.stockCode) {
+        if (!form.storeName || !form.storeCode) {
             toast.error("Store nomenclature and stock code are required")
             return
         }
@@ -84,7 +84,7 @@ export default function ItemStorePage() {
             if (!res.ok) throw new Error(result.error || "Failed to initialize storage hub")
 
             toast.success("Storage hub initialized")
-            setForm({ storeName: "", stockCode: "", description: "" })
+            setForm({ storeName: "", storeCode: "", description: "" })
             fetchData()
         } catch (error: any) {
             toast.error(error.message)
@@ -120,7 +120,7 @@ export default function ItemStorePage() {
                     </div>
                     <div>
                         <span className="font-black text-gray-900 tracking-tight uppercase leading-none">{val}</span>
-                        <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Code: {row.stockCode}</div>
+                        <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Code: {row.storeCode}</div>
                     </div>
                 </div>
             )
@@ -161,7 +161,7 @@ export default function ItemStorePage() {
 
     const filteredStores = stores.filter((s: any) =>
         s.storeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.stockCode.toLowerCase().includes(searchTerm.toLowerCase())
+        s.storeCode?.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
     return (
@@ -208,8 +208,8 @@ export default function ItemStorePage() {
                                 <div className="space-y-3">
                                     <Label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] ml-1">Operational Code <span className="text-rose-500 font-black">*</span></Label>
                                     <Input
-                                        value={form.stockCode}
-                                        onChange={(e) => setForm({ ...form, stockCode: e.target.value })}
+                                        value={form.storeCode}
+                                        onChange={(e) => setForm({ ...form, storeCode: e.target.value })}
                                         placeholder="Vault Core Code"
                                         className="bg-gray-50/50 border-none ring-1 ring-gray-100 h-14 px-5 rounded-2xl focus:ring-indigo-500 font-black text-indigo-900"
                                     />

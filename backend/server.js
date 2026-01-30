@@ -263,6 +263,7 @@ app.use('/api/template-settings', templateSettingRoutes);
 app.use('/api/front-cms', frontCMSRoutes);
 app.use('/api/user-management', userManagementRoutes);
 app.use('/api/cms', cmsRoutes);
+app.use('/api/upload', require('./src/routes/upload'));
 
 
 

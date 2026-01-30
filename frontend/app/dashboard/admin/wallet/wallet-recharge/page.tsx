@@ -35,7 +35,9 @@ export default function WalletRecharge() {
                 headers: { "Authorization": `Bearer ${token}` }
             })
             const data = await res.json()
-            if (data.success && Array.isArray(data.data)) {
+            if (Array.isArray(data)) {
+                setStudents(data)
+            } else if (data.success && Array.isArray(data.data)) {
                 setStudents(data.data)
             }
         } catch (err) {
