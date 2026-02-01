@@ -238,9 +238,10 @@ exports.approveRegistration = async (req, res) => {
     school.adminPassword = hashedPassword;
     await school.save();
 
-    // Generate username from school name (e.g., "Green Valley" -> "GREENVALLEY_ADMIN")
-    const usernameStub = school.schoolName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    const adminUsername = `${usernameStub}_ADMIN`;
+    // Generate username using School Name + Random Number
+    const usernameStub = school.schoolName.replace(/[^a-zA-Z]/g, '').toUpperCase().substring(0, 10);
+    const randomNumber = Math.floor(100000 + Math.random() * 900000); // 6 digit number
+    const adminUsername = `${usernameStub}${randomNumber}`;
 
     const newUser = await User.create({
       email: adminEmail,
@@ -255,7 +256,27 @@ exports.approveRegistration = async (req, res) => {
     });
 
     try {
-      await sendSchoolApprovalEmail(school.email, school.schoolName, adminEmail, adminPassword);
+      // Use generic email service for consistent branding
+      const { sendEmail } = require('../utils/emailService');
+      await sendEmail({
+        to: adminEmail,
+        subject: 'Registration Approved - Frontier LMS Admin Access',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #6610f2;">Welcome to Frontier LMS</h2>
+                <h3 style="color: #333;">${school.schoolName} Registration Approved!</h3>
+                <p>Hello Admin,</p>
+                <p>Your school registration has been approved. You can now access your administrative dashboard.</p>
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #6610f2;">
+                    <p><strong>Admin Username:</strong> ${adminUsername}</p>
+                    <p><strong>Password:</strong> ${adminPassword}</p>
+                </div>
+                <p style="color: #dc3545; font-size: 0.9em;">* Please change your password immediately after logging in.</p>
+                <p><a href="${process.env.FRONTEND_URL}/login" style="display: inline-block; background-color: #6610f2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Login to Dashboard</a></p>
+            </div>
+          `
+      });
+
       res.json({
         success: true,
         message: 'School approved successfully! Login credentials have been sent to the school.',
@@ -387,9 +408,10 @@ exports.autoApproveSchool = async (req, res) => {
 
     console.log('✅ School status updated to approved:', school.schoolName);
 
-    // Generate username from school name
-    const usernameStub = school.schoolName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    const adminUsername = `${usernameStub}_ADMIN`;
+    // Generate username using School Name + Random Number
+    const usernameStub = school.schoolName.replace(/[^a-zA-Z]/g, '').toUpperCase().substring(0, 10);
+    const randomNumber = Math.floor(100000 + Math.random() * 900000); // 6 digit number
+    const adminUsername = `${usernameStub}${randomNumber}`;
 
     // Create school admin user
     const newUser = await User.create({
@@ -413,7 +435,25 @@ exports.autoApproveSchool = async (req, res) => {
     // Send approval email with credentials
     try {
       console.log('📧 Sending approval email with credentials to:', adminEmail);
-      await sendSchoolApprovalEmail(adminEmail, school.schoolName, adminEmail, adminPassword);
+      const { sendEmail } = require('../utils/emailService');
+      await sendEmail({
+        to: adminEmail,
+        subject: 'Registration Approved - Frontier LMS Admin Access',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #6610f2;">Welcome to Frontier LMS</h2>
+                <h3 style="color: #333;">${school.schoolName} Registration Approved!</h3>
+                <p>Hello Admin,</p>
+                <p>Your school registration has been automatically approved. You can now access your administrative dashboard.</p>
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #6610f2;">
+                    <p><strong>Admin Username:</strong> ${adminUsername}</p>
+                    <p><strong>Password:</strong> ${adminPassword}</p>
+                </div>
+                <p style="color: #dc3545; font-size: 0.9em;">* Please change your password immediately after logging in.</p>
+                <p><a href="${process.env.FRONTEND_URL}/login" style="display: inline-block; background-color: #6610f2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Login to Dashboard</a></p>
+            </div>
+          `
+      });
       console.log('✅ Approval email sent to:', adminEmail);
 
       res.json({

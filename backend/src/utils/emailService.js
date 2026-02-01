@@ -278,3 +278,23 @@ exports.sendParentCredentials = async (toEmail, parentName, username, password) 
     return info;
   } catch (e) { console.error(e); throw e; }
 };
+// Send generic email
+exports.sendEmail = async ({ to, subject, html }) => {
+  const transporter = await getTransporter();
+  if (!transporter) return { success: false, message: 'Email System Failure' };
+
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_FROM || '"Frontier LMS" <system@frontierlms.com>',
+      to: to,
+      subject: subject,
+      html: html
+    });
+    console.log(`✅ Email sent to ${to}: ${subject}`);
+    if (isMockTransport) console.log('🌍 [MOCK PREVIEW]:', nodemailer.getTestMessageUrl(info));
+    return info;
+  } catch (error) {
+    console.error('❌ Failed to send email:', error.message);
+    throw error;
+  }
+};

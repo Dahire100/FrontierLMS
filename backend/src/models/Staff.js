@@ -47,20 +47,19 @@ const staffSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['admin', 'accountant', 'librarian', 'receptionist', 'security', 'maintenance', 'other'],
+        enum: ['teacher', 'driver', 'admin', 'accountant', 'librarian', 'receptionist', 'security', 'maintenance', 'other'],
         required: true
     },
     department: {
         type: String,
-        required: true
+        default: 'General'
     },
     designation: {
         type: String,
-        required: true
+        default: 'Staff'
     },
     dateOfJoining: {
-        type: Date,
-        required: true
+        type: Date
     },
     employmentType: {
         type: String,

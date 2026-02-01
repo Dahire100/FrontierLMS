@@ -183,10 +183,26 @@ exports.addStudent = async (req, res) => {
         isActive: true
       });
 
-      // Send credentials via email
+      // Send credentials via email using generic service
       try {
-        const { sendStudentCredentials } = require('../utils/emailService');
-        await sendStudentCredentials(email, `${firstName} ${lastName}`, studentId, studentPassword);
+        const { sendEmail } = require('../utils/emailService');
+        await sendEmail({
+          to: email,
+          subject: 'Your Student Credentials - Frontier LMS',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #0d6efd;">Welcome to ${school.schoolName || 'Frontier LMS'}</h2>
+                <p>Hello ${firstName},</p>
+                <p>Your student account has been created. Here are your login details:</p>
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #0d6efd;">
+                    <p><strong>Student ID / Username:</strong> ${studentId}</p>
+                    <p><strong>Password:</strong> ${studentPassword}</p>
+                </div>
+                <p><a href="${process.env.FRONTEND_URL}/login" style="display: inline-block; background-color: #0d6efd; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Login Now</a></p>
+            </div>
+          `
+        });
+        console.log(`Student credentials email sent to ${email}`);
       } catch (emailError) {
         console.error('Failed to send student credentials email:', emailError);
       }
@@ -209,7 +225,7 @@ exports.addStudent = async (req, res) => {
         const hashedParentPassword = bcrypt.hashSync(parentPassword, 10);
 
         // Generate Parent ID (Starts with P)
-        const parentUsername = `P${Date.now()}${Math.floor(Math.random() * 1000)}`;
+        const parentUsername = `P${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000)}`;
 
         await User.create({
           email: parentEmailAddr,
@@ -223,10 +239,26 @@ exports.addStudent = async (req, res) => {
           phone: parentPhone
         });
 
-        console.log(`✅ Parent User Created: ${parentEmailAddr} / ${parentPassword}`);
+        console.log(`✅ Parent User Created: ${parentEmailAddr}`);
         try {
-          const { sendParentCredentials } = require('../utils/emailService');
-          await sendParentCredentials(parentEmailAddr, parentName, parentUsername, parentPassword);
+          const { sendEmail } = require('../utils/emailService');
+          await sendEmail({
+            to: parentEmailAddr,
+            subject: 'Parent Portal Access - Frontier LMS',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #198754;">Welcome to ${school.schoolName || 'Frontier LMS'} Parent Portal</h2>
+                  <p>Hello ${parentName || 'Parent'},</p>
+                  <p>Your parent account is ready. You can track your child's progress here:</p>
+                  <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #198754;">
+                      <p><strong>Username:</strong> ${parentUsername}</p>
+                      <p><strong>Password:</strong> ${parentPassword}</p>
+                  </div>
+                  <p><a href="${process.env.FRONTEND_URL}/login" style="display: inline-block; background-color: #198754; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Login to Parent Portal</a></p>
+              </div>
+            `
+          });
+          console.log(`Parent credentials email sent to ${parentEmailAddr}`);
         } catch (pErr) {
           console.error('Parent email failed', pErr);
         }

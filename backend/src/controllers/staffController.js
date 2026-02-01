@@ -1,4 +1,4 @@
-// controllers/staffController.js
+const Teacher = require('../models/Teacher');
 const Staff = require('../models/Staff');
 const User = require('../models/User');
 const School = require('../models/School');
@@ -25,15 +25,21 @@ exports.createStaff = async (req, res) => {
         // Generate Staff/Teacher ID
         let staffId = staffData.staffId;
 
-        // Auto-generate ID if not provided or to enforce format
+        // Auto-generate ID if not provided or to enforce format or if it's just a placeholder
+        // Frontend might send a placeholder like "JD123", we can override if needed, but let's trust it or ensure uniqueness
         if (!staffId || staffData.role === 'teacher') {
             const timestamp = Date.now().toString();
             const suffix = Math.floor(Math.random() * 1000);
 
             if (staffData.role === 'teacher') {
-                staffId = `T${timestamp}${suffix}`;
+                // Keep the ID if it looks formal, otherwise generate
+                if (!staffId.startsWith('T')) {
+                    staffId = `T${timestamp}${suffix}`;
+                }
             } else {
-                staffId = `${schoolNameClean}_ST${timestamp.slice(-4)}${suffix}`;
+                if (!staffId.includes(schoolNameClean)) {
+                    staffId = `${schoolNameClean}_ST${timestamp.slice(-4)}${suffix}`;
+                }
             }
         }
 
@@ -42,12 +48,26 @@ exports.createStaff = async (req, res) => {
         // Check if staff ID already exists for this school
         const existingStaff = await Staff.findOne({ schoolId, staffId: staffData.staffId });
         if (existingStaff) {
-            // Retry once with new ID if collision (improbable but safe)
             staffData.staffId = `${staffData.staffId}_${Math.floor(Math.random() * 100)}`;
         }
 
-        // Create user account if email is provided
-        // Generate random password with School Prefix
+        // Data Mapping for Staff Model
+        if (staffData.joiningDate) {
+            staffData.dateOfJoining = staffData.joiningDate;
+        }
+
+        // Handle Salary - Frontend sends a single value, backend expects object
+        if (staffData.salary && typeof staffData.salary !== 'object') {
+            const salAmount = Number(staffData.salary) || 0;
+            staffData.salary = {
+                basicSalary: salAmount,
+                allowances: 0,
+                deductions: 0,
+                netSalary: salAmount
+            };
+        }
+
+        // Create user account
         const charset = 'abcdefghijklmnopqrstuvwxyz0123456789';
         let randomPart = '';
         for (let i = 0; i < 6; i++) {
@@ -57,10 +77,10 @@ exports.createStaff = async (req, res) => {
 
         const user = new User({
             email: staffData.email,
-            username: staffData.staffId, // Use the generated T-prefixed ID as username
-            passwordHash: await bcrypt.hash(tempPassword, 10), // Use hashedPassword field! Fixed key name.
-            role: staffData.role === 'teacher' ? 'teacher' : 'staff', // Ensure role mapping
-            firstName: staffData.firstName, // Add names to User
+            username: staffData.staffId,
+            passwordHash: await bcrypt.hash(tempPassword, 10),
+            role: staffData.role === 'teacher' ? 'teacher' : 'staff', // simplistic mapping
+            firstName: staffData.firstName,
             lastName: staffData.lastName,
             schoolId,
             isActive: true
@@ -71,6 +91,50 @@ exports.createStaff = async (req, res) => {
 
         const staff = new Staff(staffData);
         await staff.save();
+
+        // If it's a teacher, also create a Teacher record for backward compatibility
+        if (staffData.role === 'teacher') {
+            const teacher = new Teacher({
+                teacherId: staffData.staffId,
+                firstName: staffData.firstName,
+                lastName: staffData.lastName,
+                email: staffData.email,
+                phone: staffData.phone,
+                qualification: staffData.qualification,
+                subjects: staffData.subjects ? staffData.subjects.split(',').map(s => s.trim()) : [],
+                joiningDate: staffData.joiningDate || new Date(),
+                address: staffData.address,
+                salary: typeof staffData.salary === 'object' ? staffData.salary.netSalary : Number(staffData.salary),
+                schoolId: schoolId
+            });
+            await teacher.save();
+        }
+
+        // Send credentials email
+        try {
+            const emailService = require('../utils/emailService');
+            await emailService.sendEmail({
+                to: staffData.email,
+                subject: 'Your Staff Credentials - Frontier LMS',
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #0d6efd;">Welcome to ${school.schoolName || 'Frontier LMS'}</h2>
+                        <p>Hello ${staffData.firstName},</p>
+                        <p>Your staff account has been created successfully. Here are your login credentials:</p>
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #0d6efd;">
+                            <p><strong>Username:</strong> ${staffData.email} or ${staffData.staffId}</p>
+                            <p><strong>Password:</strong> ${tempPassword}</p>
+                        </div>
+                        <p>Please login and change your password immediately.</p>
+                        <a href="${process.env.FRONTEND_URL}/login" style="display: inline-block; background-color: #0d6efd; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 20px;">Login Now</a>
+                    </div>
+                `
+            });
+            console.log(`Credentials email sent to ${staffData.email}`);
+        } catch (emailError) {
+            console.error('Failed to send credentials email:', emailError);
+            // Don't block the response, just log the error
+        }
 
         res.status(201).json({
             message: 'Staff member created successfully',
@@ -83,7 +147,7 @@ exports.createStaff = async (req, res) => {
         });
     } catch (err) {
         console.error('Error creating staff:', err);
-        res.status(500).json({ error: 'Failed to create staff member' });
+        res.status(500).json({ error: 'Failed to create staff member: ' + err.message });
     }
 };
 
