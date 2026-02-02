@@ -185,7 +185,17 @@ export default function SettingsPage() {
                                     <Button
                                         variant="link"
                                         className="text-blue-700 p-0 h-auto font-bold mt-2 hover:text-blue-900"
-                                        onClick={() => window.location.href = '/dashboard/admin/profile'}
+                                        onClick={() => {
+                                            const role = profile?.role;
+                                            let path = '/dashboard/admin/profile'; // Default
+
+                                            if (role === 'super_admin') path = '/dashboard/super-admin/profile';
+                                            else if (role === 'teacher') path = '/dashboard/teacher/profile';
+                                            else if (role === 'student') path = '/dashboard/student/profile';
+                                            else if (role === 'parent') path = '/dashboard/parent/profile';
+
+                                            window.location.href = path;
+                                        }}
                                     >
                                         Go to My Profile →
                                     </Button>

@@ -527,6 +527,7 @@ export const navigationByRole: Record<UserRole, NavItem[]> = {
   ],
   "super_admin": [
     { label: "Dashboard", href: "/dashboard/super-admin" },
+    { label: "My Profile", href: "/dashboard/super-admin/profile" },
     { label: "Institute Management", href: "/dashboard/super-admin/institute-management" },
     { label: "SaaS Plan Management", href: "/dashboard/super-admin/saas-plans" },
     { label: "Billing & Invoicing", href: "/dashboard/super-admin/billing" },
