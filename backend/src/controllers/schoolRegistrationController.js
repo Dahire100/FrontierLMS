@@ -336,6 +336,27 @@ exports.rejectRegistration = async (req, res) => {
       });
     }
 
+    // Send rejection email
+    try {
+      const { sendEmail } = require('../utils/emailService');
+      await sendEmail({
+        to: school.email,
+        subject: 'Registration Update - Frontier LMS',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #dc3545;">Registration Rejected</h2>
+                <p>Dear ${school.principalName || 'Principal'},</p>
+                <p>We regret to inform you that your registration for <strong>${school.schoolName}</strong> has been rejected.</p>
+                ${reason ? `<div style="background-color: #fff3f3; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;"><p><strong>Reason:</strong> ${reason}</p></div>` : ''}
+                <p>If you believe this is a mistake or would like to appeal, please reply to this email.</p>
+            </div>
+        `
+      });
+      console.log(`📧 Rejection email sent to ${school.email}`);
+    } catch (emailError) {
+      console.error('❌ Failed to send rejection email:', emailError);
+    }
+
     res.json({
       success: true,
       message: reason ? `Registration rejected: ${reason}` : 'Registration rejected',
@@ -536,6 +557,27 @@ exports.autoRejectSchool = async (req, res) => {
     await school.save();
 
     console.log('✅ School registration rejected:', schoolId);
+
+    // Send rejection email
+    try {
+      const { sendEmail } = require('../utils/emailService');
+      await sendEmail({
+        to: school.email,
+        subject: 'Registration Update - Frontier LMS',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #dc3545;">Registration Rejected</h2>
+                <p>Dear ${school.principalName || 'Principal'},</p>
+                <p>We regret to inform you that your registration for <strong>${school.schoolName}</strong> has been rejected.</p>
+                ${reason ? `<div style="background-color: #fff3f3; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;"><p><strong>Reason:</strong> ${reason}</p></div>` : ''}
+                <p>If you believe this is a mistake or would like to appeal, please reply to this email.</p>
+            </div>
+        `
+      });
+      console.log(`📧 Rejection email sent to ${school.email}`);
+    } catch (emailError) {
+      console.error('❌ Failed to send rejection email:', emailError);
+    }
 
     res.json({
       success: true,
