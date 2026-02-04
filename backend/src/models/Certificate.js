@@ -15,7 +15,7 @@ const certificateSchema = new mongoose.Schema({
   certificateType: {
     type: String,
     required: true,
-    enum: ['achievement', 'participation', 'conduct', 'completion', 'merit', 'attendance', 'sports', 'other']
+    enum: ['achievement', 'participation', 'conduct', 'completion', 'merit', 'attendance', 'sports', 'bonafide', 'transfer', 'character', 'consent', 'other']
   },
   title: {
     type: String,

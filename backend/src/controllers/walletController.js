@@ -2,6 +2,7 @@
 const Wallet = require('../models/Wallet');
 const Student = require('../models/Student');
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 
 // Generate unique transaction ID
 const generateTxId = () => {
@@ -59,42 +60,92 @@ exports.getWallet = async (req, res) => {
 // Get wallet transactions
 exports.getTransactions = async (req, res) => {
     const { schoolId, _id: userId, role, email } = req.user;
-    const { studentId, page = 1, limit = 10 } = req.query;
+    const { studentId, page = 1, limit = 10, type, startDate, endDate } = req.query;
 
     try {
-        let targetStudentId = null;
-
-        if (role === 'admin' || role === 'school_admin' || role === 'accountant' || role === 'teacher') {
-            if (!studentId) {
-                return res.status(400).json({ error: 'Student ID required' });
+        // Case 1: Fetch for specific student (Existing Logic)
+        if (studentId) {
+            let targetStudentId = studentId;
+            if (role === 'student') {
+                const student = await Student.findOne({ email, schoolId });
+                if (!student) return res.status(404).json({ error: 'Student profile not found' });
+                // Enforce student can only see their own
+                if (student._id.toString() !== studentId) {
+                    return res.status(403).json({ error: 'Access denied' });
+                }
+                targetStudentId = student._id;
             }
-            targetStudentId = studentId;
-        } else if (role === 'student') {
-            const student = await Student.findOne({ email, schoolId });
-            if (!student) return res.status(404).json({ error: 'Student profile not found' });
-            targetStudentId = student._id;
+
+            const wallet = await Wallet.findOne({ studentId: targetStudentId, schoolId });
+            if (!wallet) {
+                // If checking specific student and wallet missing, return empty
+                return res.json({ transactions: [], total: 0, totalPages: 0, currentPage: 1 });
+            }
+
+            let transactions = wallet.transactions;
+
+            // Apply Filters
+            if (type) transactions = transactions.filter(t => t.type === type);
+            if (startDate) transactions = transactions.filter(t => new Date(t.date) >= new Date(startDate));
+            if (endDate) transactions = transactions.filter(t => new Date(t.date) <= new Date(endDate));
+
+            // Sort
+            transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // Pagination
+            const startIndex = (page - 1) * limit;
+            const endIndex = startIndex + parseInt(limit);
+            const paginatedTxns = transactions.slice(startIndex, endIndex);
+
+            return res.json({
+                transactions: paginatedTxns,
+                total: transactions.length,
+                totalPages: Math.ceil(transactions.length / limit),
+                currentPage: parseInt(page)
+            });
         }
 
-        const wallet = await Wallet.findOne({ studentId: targetStudentId, schoolId });
+        // Case 2: Fetch ALL transactions (Admin Only)
+        if (role === 'admin' || role === 'school_admin' || role === 'accountant') {
+            const pipeline = [
+                { $match: { schoolId: new mongoose.Types.ObjectId(schoolId) } },
+                { $unwind: "$transactions" },
+                { $sort: { "transactions.date": -1 } }
+            ];
 
-        if (!wallet) {
-            return res.status(404).json({ error: 'Wallet not found' });
+            // Apply Filters in Aggregation
+            if (type) {
+                pipeline.push({ $match: { "transactions.type": type } });
+            }
+            if (startDate || endDate) {
+                const dateFilter = {};
+                if (startDate) dateFilter.$gte = new Date(startDate);
+                if (endDate) dateFilter.$lte = new Date(endDate);
+                pipeline.push({ $match: { "transactions.date": dateFilter } });
+            }
+
+            // Facet for pagination and counting
+            pipeline.push({
+                $facet: {
+                    metadata: [{ $count: "total" }],
+                    data: [{ $skip: (page - 1) * parseInt(limit) }, { $limit: parseInt(limit) }]
+                }
+            });
+
+            const result = await Wallet.aggregate(pipeline);
+            const data = result[0].data.map(item => item.transactions);
+            const total = result[0].metadata[0] ? result[0].metadata[0].total : 0;
+
+            return res.json({
+                transactions: data,
+                total: total,
+                totalPages: Math.ceil(total / limit),
+                currentPage: parseInt(page)
+            });
         }
 
-        // Sort by date desc
-        const sortedTxns = wallet.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        return res.status(400).json({ error: 'Student ID required for non-admins' });
 
-        // Pagination
-        const startIndex = (page - 1) * limit;
-        const endIndex = startIndex + parseInt(limit);
-        const paginatedTxns = sortedTxns.slice(startIndex, endIndex);
-
-        res.json({
-            transactions: paginatedTxns,
-            total: sortedTxns.length,
-            totalPages: Math.ceil(sortedTxns.length / limit),
-            currentPage: parseInt(page)
-        });
     } catch (err) {
         console.error('Error fetching transactions:', err);
         res.status(500).json({ error: 'Failed to fetch transactions' });

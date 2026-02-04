@@ -23,6 +23,7 @@ export default function WalletRecharge() {
         referenceId: ""
     })
     const [currentBalance, setCurrentBalance] = useState<number | null>(null)
+    const [transactions, setTransactions] = useState<any[]>([])
 
     useEffect(() => {
         fetchStudents()
@@ -47,26 +48,38 @@ export default function WalletRecharge() {
         }
     }
 
-    const fetchWalletBalance = async (studentId: string) => {
+    const fetchWalletData = async (studentId: string) => {
         try {
             const token = localStorage.getItem("token")
-            const res = await fetch(`${API_URL}/api/wallet?studentId=${studentId}`, {
+
+            // Fetch Balance
+            const balanceRes = await fetch(`${API_URL}/api/wallet?studentId=${studentId}`, {
                 headers: { "Authorization": `Bearer ${token}` }
             })
-            const data = await res.json()
-            if (data.balance !== undefined) {
-                setCurrentBalance(data.balance)
+            const balanceData = await balanceRes.json()
+            if (balanceData.balance !== undefined) {
+                setCurrentBalance(balanceData.balance)
+            }
+
+            // Fetch Transactions
+            const txRes = await fetch(`${API_URL}/api/wallet/transactions?studentId=${studentId}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            })
+            if (txRes.ok) {
+                const txData = await txRes.json()
+                setTransactions(txData.transactions || [])
             }
         } catch (err) {
-            console.error("Failed to fetch wallet balance")
+            console.error("Failed to fetch wallet data")
         }
     }
 
     const handleStudentChange = (studentId: string) => {
         setForm({ ...form, studentId })
         setCurrentBalance(null)
+        setTransactions([])
         if (studentId) {
-            fetchWalletBalance(studentId)
+            fetchWalletData(studentId)
         }
     }
 
@@ -103,8 +116,8 @@ export default function WalletRecharge() {
             const data = await res.json()
             if (data.message || res.ok) {
                 toast.success(`Wallet recharged successfully! New balance: ₹${data.newBalance}`)
-                setForm({ studentId: "", amount: "", description: "", referenceId: "" })
-                setCurrentBalance(null)
+                setForm({ ...form, amount: "", description: "", referenceId: "" })
+                fetchWalletData(form.studentId) // Refresh data
             } else {
                 toast.error(data.error || "Failed to recharge wallet")
             }
@@ -199,6 +212,48 @@ export default function WalletRecharge() {
                         </form>
                     </CardContent>
                 </Card>
+
+                {/* Transaction History */}
+                {form.studentId && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Recent Transactions</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="relative w-full overflow-auto">
+                                <table className="w-full caption-bottom text-sm text-left">
+                                    <thead className="[&_tr]:border-b">
+                                        <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Date</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Type</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Description</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Amount</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Balance After</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="[&_tr:last-child]:border-0">
+                                        {transactions.map((tx: any, i) => (
+                                            <tr key={i} className="border-b transition-colors hover:bg-muted/50">
+                                                <td className="p-4 align-middle">{new Date(tx.date).toLocaleDateString()}</td>
+                                                <td className="p-4 align-middle capitalize">{tx.type}</td>
+                                                <td className="p-4 align-middle">{tx.description}</td>
+                                                <td className={`p-4 align-middle font-bold ${tx.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {tx.type === 'credit' ? '+' : '-'}₹{tx.amount}
+                                                </td>
+                                                <td className="p-4 align-middle">₹{tx.balanceAfter}</td>
+                                            </tr>
+                                        ))}
+                                        {transactions.length === 0 && (
+                                            <tr>
+                                                <td colSpan={5} className="p-4 text-center text-gray-500">No transactions found</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </DashboardLayout>
     )

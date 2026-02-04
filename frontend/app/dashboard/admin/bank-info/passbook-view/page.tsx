@@ -14,9 +14,10 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { BookOpen, Loader2, TrendingUp, TrendingDown } from "lucide-react"
+import { BookOpen, Loader2, TrendingUp, TrendingDown, Printer, Download, RefreshCw } from "lucide-react"
 import { API_URL } from "@/lib/api-config"
 import { toast } from "sonner"
+import { useRouter, useSearchParams } from "next/navigation"
 
 interface BankAccount {
     _id: string
@@ -37,15 +38,25 @@ interface Transaction {
 }
 
 export default function PassbookView() {
+    const searchParams = useSearchParams()
+    const router = useRouter()
+    const initialAccountId = searchParams?.get("id") || ""
+
     const [banks, setBanks] = useState<BankAccount[]>([])
     const [transactions, setTransactions] = useState<Transaction[]>([])
     const [loading, setLoading] = useState(false)
     const [filters, setFilters] = useState({
-        accountId: "",
+        accountId: initialAccountId,
         dateFrom: "",
         dateTo: "",
         type: ""
     })
+
+    useEffect(() => {
+        if (initialAccountId) {
+            setFilters(prev => ({ ...prev, accountId: initialAccountId }))
+        }
+    }, [initialAccountId])
 
     const fetchBanks = async () => {
         try {
@@ -79,8 +90,9 @@ export default function PassbookView() {
             })
             const data = await response.json()
 
-            if (data.success) {
-                let txns = data.data || []
+            if (data.success || Array.isArray(data)) {
+                let txns = data.data || data || [] // Handle varying response structure
+                if (Array.isArray(data)) txns = data
 
                 // Apply filters
                 if (filters.dateFrom) {
@@ -109,6 +121,57 @@ export default function PassbookView() {
         fetchBanks()
     }, [])
 
+    // Auto-fetch if account ID is provided and banks are loaded
+    useEffect(() => {
+        if (filters.accountId && banks.length > 0 && transactions.length === 0) {
+            fetchTransactions()
+        }
+    }, [banks, filters.accountId])
+
+    const handleClear = () => {
+        setFilters({
+            accountId: "",
+            dateFrom: "",
+            dateTo: "",
+            type: ""
+        })
+        setTransactions([])
+        router.push('/dashboard/admin/bank-info/passbook-view')
+    }
+
+    const handleExportCSV = () => {
+        if (transactions.length === 0) {
+            toast.error("No data to export")
+            return
+        }
+
+        const headers = ["Date", "Type", "Amount", "Description", "Reference", "Balance After"]
+        const csvContent = [
+            headers.join(","),
+            ...transactions.map(t => [
+                new Date(t.date).toLocaleDateString(),
+                t.type,
+                t.amount,
+                `"${t.description || ""}"`,
+                t.reference || "",
+                t.balanceAfter || ""
+            ].join(","))
+        ].join("\n")
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.setAttribute("href", url)
+        link.setAttribute("download", `passbook_export_${new Date().toISOString().split('T')[0]}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
+    const handlePrint = () => {
+        window.print()
+    }
+
     const selectedAccount = banks.find(b => b._id === filters.accountId)
 
     const totalCredit = transactions
@@ -124,7 +187,7 @@ export default function PassbookView() {
             <div className="space-y-6">
                 {/* Account Summary */}
                 {selectedAccount && (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 no-print">
                         <Card>
                             <CardContent className="pt-6">
                                 <div className="text-sm text-gray-500">Account Name</div>
@@ -155,7 +218,7 @@ export default function PassbookView() {
                 )}
 
                 {/* Filters */}
-                <Card>
+                <Card className="no-print">
                     <CardHeader className="bg-pink-50 border-b border-pink-100">
                         <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
                             <BookOpen className="h-5 w-5" />
@@ -210,10 +273,16 @@ export default function PassbookView() {
                                 </Select>
                             </div>
                         </div>
-                        <div className="flex justify-end">
-                            <Button onClick={fetchTransactions} className="bg-blue-900 hover:bg-blue-800">
-                                Search
-                            </Button>
+                        <div className="flex justify-between items-center">
+                            <p className="text-sm text-gray-500 italic">Select an account to view its transaction history.</p>
+                            <div className="flex gap-2">
+                                <Button onClick={handleClear} variant="outline" className="border-gray-300">
+                                    <RefreshCw className="h-4 w-4 mr-2" /> Clear
+                                </Button>
+                                <Button onClick={fetchTransactions} className="bg-blue-900 hover:bg-blue-800">
+                                    Search
+                                </Button>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -255,9 +324,17 @@ export default function PassbookView() {
                 )}
 
                 {/* Ledger */}
-                <Card>
-                    <CardHeader className="bg-pink-50 border-b border-pink-100">
+                <Card className="print-safe">
+                    <CardHeader className="bg-pink-50 border-b border-pink-100 flex flex-row justify-between items-center">
                         <CardTitle className="text-lg text-gray-800">Ledger</CardTitle>
+                        <div className="flex gap-2 no-print">
+                            <Button size="sm" variant="outline" onClick={handleExportCSV}>
+                                <Download className="h-4 w-4 mr-2" /> Export CSV
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={handlePrint}>
+                                <Printer className="h-4 w-4 mr-2" /> Print
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardContent className="pt-6">
                         {loading ? (
@@ -314,6 +391,12 @@ export default function PassbookView() {
                         )}
                     </CardContent>
                 </Card>
+                <style jsx global>{`
+                    @media print {
+                        .no-print { display: none !important; }
+                        .print-safe { box-shadow: none !important; border: none !important; }
+                    }
+                `}</style>
             </div>
         </DashboardLayout>
     )

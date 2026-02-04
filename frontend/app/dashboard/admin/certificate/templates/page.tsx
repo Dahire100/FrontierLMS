@@ -9,8 +9,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Stamp, Loader2, Pencil, Trash2, FileText } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Stamp, Loader2, Pencil, Trash2, FileText, Eye, Printer, Download } from "lucide-react"
 import { toast } from "sonner"
+import jsPDF from "jspdf"
+import { API_URL } from "@/lib/api-config"
 
 interface Template {
   id: string
@@ -27,6 +30,7 @@ export default function CertificateTemplates() {
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [viewTemplate, setViewTemplate] = useState<Template | null>(null)
 
   const [form, setForm] = useState({
     name: "",
@@ -35,10 +39,45 @@ export default function CertificateTemplates() {
     content: ""
   })
 
-  // Load templates from localStorage (since there's no backend model)
+  const [schoolSettings, setSchoolSettings] = useState({
+    schoolName: "",
+    address: "",
+    phone: "",
+    email: ""
+  })
+
   useEffect(() => {
     loadTemplates()
+    fetchSchoolSettings()
   }, [])
+
+  const fetchSchoolSettings = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${API_URL}/api/settings/general`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+
+      if (!response.ok) {
+        console.error("Failed to fetch settings:", response.status)
+        return
+      }
+
+      const data = await response.json()
+      const settings = data.data || data
+
+      if (settings && settings.schoolName) {
+        setSchoolSettings({
+          schoolName: settings.schoolName,
+          address: settings.address || "Address Not Available",
+          phone: settings.phone || "",
+          email: settings.email || ""
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching school settings:", error)
+    }
+  }
 
   const loadTemplates = () => {
     try {
@@ -46,7 +85,6 @@ export default function CertificateTemplates() {
       if (stored) {
         setTemplates(JSON.parse(stored))
       } else {
-        // Set default templates
         const defaultTemplates: Template[] = [
           {
             id: "1",
@@ -106,7 +144,6 @@ export default function CertificateTemplates() {
 
     try {
       if (editingId) {
-        // Update existing template
         const updatedTemplates = templates.map(t =>
           t.id === editingId
             ? { ...t, ...form, updatedAt: new Date().toISOString() }
@@ -116,7 +153,6 @@ export default function CertificateTemplates() {
         toast.success("Template updated successfully")
         setEditingId(null)
       } else {
-        // Create new template
         const newTemplate: Template = {
           id: Date.now().toString(),
           ...form,
@@ -152,7 +188,6 @@ export default function CertificateTemplates() {
 
   const handleDelete = (id: string) => {
     if (!confirm("Are you sure you want to delete this template?")) return
-
     const updatedTemplates = templates.filter(t => t.id !== id)
     saveTemplates(updatedTemplates)
     toast.success("Template deleted successfully")
@@ -166,6 +201,93 @@ export default function CertificateTemplates() {
       content: ""
     })
     setEditingId(null)
+  }
+
+  const getPreviewContent = (template: Template) => {
+    let content = template.content
+    const sampleData: Record<string, string> = {
+      "[Student Name]": "John Doe",
+      "[Roll Number]": "12345",
+      "[Class]": "X-A",
+      "[Purpose]": "Bank Account Opening",
+      "[Date]": new Date().toLocaleDateString(),
+      "[Conduct]": "Excellent",
+      "[Last Attended Date]": new Date().toLocaleDateString()
+    }
+
+    Object.entries(sampleData).forEach(([key, value]) => {
+      content = content.replaceAll(key, value)
+    })
+    return content
+  }
+
+  const generatePDF = (template: Template) => {
+    const doc = new jsPDF()
+
+    // -- Decorative Border --
+    doc.setDrawColor(41, 58, 122)
+    doc.setLineWidth(3)
+    doc.rect(10, 10, 190, 277)
+    doc.setLineWidth(1)
+    doc.rect(15, 15, 180, 267)
+
+    // -- School Header --
+    if (!schoolSettings.schoolName) {
+      toast.error("School settings not loaded. Please check your connection.")
+    }
+    doc.setFont("times", "bold")
+    doc.setFontSize(28)
+    doc.setTextColor(41, 58, 122)
+    doc.text(schoolSettings.schoolName.toUpperCase(), 105, 40, { align: "center" })
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(10)
+    doc.setTextColor(100)
+    doc.text(schoolSettings.address, 105, 50, { align: "center" })
+    doc.text(`Ph: ${schoolSettings.phone} | Email: ${schoolSettings.email}`, 105, 56, { align: "center" })
+
+    doc.setDrawColor(200)
+    doc.setLineWidth(1)
+    doc.line(30, 65, 180, 65)
+
+    // -- Title --
+    doc.setFont("times", "bold")
+    doc.setFontSize(24)
+    doc.setTextColor(0)
+    doc.text(template.name.toUpperCase(), 105, 90, { align: "center" })
+
+    // -- Content --
+    doc.setFont("times", "normal")
+    doc.setFontSize(14)
+    doc.setLineHeightFactor(1.5)
+
+    const content = getPreviewContent(template)
+    const splitText = doc.splitTextToSize(content, 150)
+    doc.text(splitText, 30, 120)
+
+    // -- Signatures --
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(12)
+
+    const signatureY = 240
+    doc.text("Authorized By", 40, signatureY)
+    doc.text("Principal", 150, signatureY)
+    doc.setFont("times", "bold")
+    doc.setFontSize(10)
+    doc.text("(Seal & Signature)", 148, signatureY + 5)
+
+    return doc
+  }
+
+  const handleDownload = (template: Template) => {
+    const doc = generatePDF(template)
+    doc.save(`${template.name}.pdf`)
+  }
+
+  const handlePrint = (template: Template) => {
+    const doc = generatePDF(template)
+    doc.autoPrint()
+    window.open(doc.output('bloburl').toString(), '_blank')
   }
 
   return (
@@ -200,6 +322,7 @@ export default function CertificateTemplates() {
                       <SelectItem value="bonafide">Bonafide Certificate</SelectItem>
                       <SelectItem value="character">Character Certificate</SelectItem>
                       <SelectItem value="transfer">Transfer Certificate</SelectItem>
+                      <SelectItem value="consent">Consent Letter</SelectItem>
                       <SelectItem value="achievement">Achievement Certificate</SelectItem>
                       <SelectItem value="participation">Participation Certificate</SelectItem>
                       <SelectItem value="completion">Completion Certificate</SelectItem>
@@ -299,18 +422,19 @@ export default function CertificateTemplates() {
                         <TableCell>{new Date(template.updatedAt).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <div className="flex gap-2 justify-center">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(template)}
-                            >
+                            <Button size="icon" variant="ghost" onClick={() => setViewTemplate(template)} title="View">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => handleDownload(template)} title="Download">
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => handlePrint(template)} title="Print">
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => handleEdit(template)} title="Edit">
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDelete(template.id)}
-                            >
+                            <Button size="icon" variant="destructive" onClick={() => handleDelete(template.id)} title="Delete">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -323,6 +447,26 @@ export default function CertificateTemplates() {
             </div>
           </CardContent>
         </Card>
+
+        {/* View Template Dialog */}
+        <Dialog open={!!viewTemplate} onOpenChange={(open) => !open && setViewTemplate(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Template Preview</DialogTitle>
+              <DialogDescription>
+                Preview with sample data
+              </DialogDescription>
+            </DialogHeader>
+            {viewTemplate && (
+              <div className="border p-8 rounded-lg space-y-8 bg-white min-h-[500px] flex flex-col items-center text-center">
+                <h1 className="text-3xl font-bold uppercase mt-8">{viewTemplate.name}</h1>
+                <div className="text-lg leading-relaxed flex-1 flex flex-col justify-center max-w-2xl text-left whitespace-pre-wrap">
+                  {getPreviewContent(viewTemplate)}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   )

@@ -7,11 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { List, Search, Building2, CreditCard, Hash } from "lucide-react"
+import { List, Search, Building2, CreditCard, Hash, XCircle, Eye, Pencil } from "lucide-react"
 import { AdvancedTable } from "@/components/super-admin/advanced-table"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 export default function BankList() {
+    const router = useRouter()
     const [banks, setBanks] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [filters, setFilters] = useState({
@@ -46,6 +48,34 @@ export default function BankList() {
 
     const handleSearch = () => {
         fetchBanks()
+    }
+
+    const handleClear = () => {
+        setFilters({
+            bankName: "",
+            accountName: "",
+            search: ""
+        })
+        setTimeout(fetchBanks, 0) // Ensure state update before fetch, or strictly, pass empty params to fetchBanks. But fetchBanks uses 'filters' state. Better to split fetch logic or use effect on filters? 
+        // Actually, just calling fetchBanks will use current 'filters' state which is async. 
+        // Correct way: pass empty object to fetch or rely on effect if filters was dependency. 
+        // Let's reload page logic:
+        // Or simpler, set state and let user click 'Filter' again? No, user expects auto clear.
+        // I will manually fetch without filters here.
+        fetchBanksWithoutFilters()
+    }
+
+    const fetchBanksWithoutFilters = async () => {
+        setLoading(true)
+        try {
+            const res = await apiFetch(`${API_ENDPOINTS.BANK_ACCOUNTS}`)
+            if (res.ok) {
+                const data = await res.json()
+                setBanks(data.accounts || [])
+            }
+        } finally {
+            setLoading(false)
+        }
     }
 
     const columns = [
@@ -151,13 +181,33 @@ export default function BankList() {
                             >
                                 Filter Directory <Search size={18} className="group-hover:scale-110 transition-transform" />
                             </Button>
+                            <Button
+                                onClick={handleClear}
+                                variant="outline"
+                                className="border-gray-300 text-gray-600 font-bold h-11 hover:bg-gray-50 flex items-center justify-center gap-2"
+                            >
+                                Clear <XCircle size={18} />
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
 
                 <AdvancedTable
                     title="Verified Accounts"
-                    columns={columns}
+                    columns={[...columns, {
+                        key: "actions",
+                        label: "Actions",
+                        render: (_: any, item: any) => (
+                            <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => router.push(`/dashboard/admin/bank-info/passbook?id=${item._id}`)}>
+                                    <Eye size={16} className="text-blue-600" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => router.push(`/dashboard/admin/bank-info/add-bank?id=${item._id}`)}>
+                                    <Pencil size={16} className="text-amber-600" />
+                                </Button>
+                            </div>
+                        )
+                    }]}
                     data={banks}
                     loading={loading}
                     pagination

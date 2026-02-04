@@ -14,7 +14,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { WalletMinimal, Loader2, Search, TrendingUp, TrendingDown } from "lucide-react"
+import { WalletMinimal, Loader2, Search, TrendingUp, TrendingDown, Printer, Download, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
 interface Transaction {
@@ -104,6 +104,42 @@ export default function WalletTransactions() {
         }
     }
 
+    const handleClear = () => {
+        setFilters({ studentId: "", type: "all" })
+        setTransactions([])
+        setWalletBalance(null)
+    }
+
+    const handleExport = () => {
+        if (transactions.length === 0) return toast.error("No data to export")
+        const headers = ["Tx ID", "Date", "Type", "Category", "Amount", "Description", "Balance After"]
+        const csv = [
+            headers.join(","),
+            ...transactions.map(t => [
+                t.txId,
+                new Date(t.date).toLocaleDateString(),
+                t.type,
+                t.category,
+                t.amount,
+                `"${t.description || ""}"`, // Quote description
+                t.balanceAfter
+            ].join(","))
+        ].join("\n")
+
+        const blob = new Blob([csv], { type: "text/csv" })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `wallet_transactions_${new Date().toISOString().split('T')[0]}.csv`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+    }
+
+    const handlePrint = () => {
+        window.print()
+    }
+
     const totalCredit = transactions
         .filter(t => t.type === "credit")
         .reduce((sum, t) => sum + t.amount, 0)
@@ -117,7 +153,7 @@ export default function WalletTransactions() {
             <div className="space-y-6">
                 {/* Balance Summary */}
                 {walletBalance !== null && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 no-print">
                         <Card>
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
@@ -161,7 +197,7 @@ export default function WalletTransactions() {
                 )}
 
                 {/* Filters */}
-                <Card>
+                <Card className="no-print">
                     <CardHeader className="bg-pink-50 border-b border-pink-100">
                         <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
                             <WalletMinimal className="h-5 w-5" />
@@ -198,7 +234,10 @@ export default function WalletTransactions() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="flex items-end">
+                            <div className="flex items-end gap-2">
+                                <Button onClick={handleClear} variant="outline" className="border-gray-300 w-full">
+                                    <RefreshCw className="h-4 w-4 mr-2" /> Clear
+                                </Button>
                                 <Button onClick={fetchTransactions} disabled={searching} className="bg-blue-900 hover:bg-blue-800 w-full">
                                     {searching ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
                                     Search
@@ -209,9 +248,17 @@ export default function WalletTransactions() {
                 </Card>
 
                 {/* Transactions Table */}
-                <Card>
-                    <CardHeader className="bg-pink-50 border-b border-pink-100">
+                <Card className="print-safe">
+                    <CardHeader className="bg-pink-50 border-b border-pink-100 flex flex-row justify-between items-center">
                         <CardTitle className="text-lg text-gray-800">Transaction History ({transactions.length})</CardTitle>
+                        <div className="flex gap-2 no-print">
+                            <Button size="sm" variant="outline" onClick={handleExport}>
+                                <Download className="h-4 w-4 mr-2" /> Export CSV
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={handlePrint}>
+                                <Printer className="h-4 w-4 mr-2" /> Print
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardContent className="pt-6">
                         <div className="overflow-x-auto">
@@ -264,6 +311,12 @@ export default function WalletTransactions() {
                         </div>
                     </CardContent>
                 </Card>
+                <style jsx global>{`
+                    @media print {
+                        .no-print { display: none !important; }
+                        .print-safe { box-shadow: none !important; border: none !important; }
+                    }
+                `}</style>
             </div>
         </DashboardLayout>
     )

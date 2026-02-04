@@ -24,8 +24,8 @@ export default function RechargeHistory() {
     const [searching, setSearching] = useState(false)
     const [filters, setFilters] = useState({
         search: "",
-        dateFrom: "",
-        dateTo: ""
+        date: "",
+        amount: ""
     })
 
     const fetchTransactions = async () => {
@@ -33,9 +33,12 @@ export default function RechargeHistory() {
             setSearching(true)
             const token = localStorage.getItem("token")
 
-            // Recharges are essentially 'credit' transactions with 'recharge' in description or category
-            // Fetching all transactions filtered by type=credit
-            const res = await fetch(`${API_URL}/api/wallet/transactions?type=credit&limit=50`, {
+            let url = `${API_URL}/api/wallet/transactions?type=credit&limit=100`
+            if (filters.date) {
+                url += `&startDate=${filters.date}`
+            }
+
+            const res = await fetch(url, {
                 headers: { "Authorization": `Bearer ${token}` }
             })
             const data = await res.json()
@@ -43,7 +46,7 @@ export default function RechargeHistory() {
             if (data.transactions && Array.isArray(data.transactions)) {
                 let txns = data.transactions
 
-                // Client-side filtering for simplicity until advanced robust backend search is ready
+                // Client-side filtering
                 if (filters.search) {
                     const lowerSearch = filters.search.toLowerCase()
                     txns = txns.filter((t: any) =>
@@ -52,12 +55,8 @@ export default function RechargeHistory() {
                     )
                 }
 
-                if (filters.dateFrom) {
-                    txns = txns.filter((t: any) => new Date(t.date) >= new Date(filters.dateFrom))
-                }
-
-                if (filters.dateTo) {
-                    txns = txns.filter((t: any) => new Date(t.date) <= new Date(filters.dateTo))
+                if (filters.amount) {
+                    txns = txns.filter((t: any) => t.amount === parseFloat(filters.amount))
                 }
 
                 setTransactions(txns)
@@ -74,10 +73,43 @@ export default function RechargeHistory() {
         fetchTransactions()
     }, [])
 
+    const handleClear = () => {
+        setFilters({ search: "", date: "", amount: "" })
+        fetchTransactions()
+    }
+
+    const handleExport = () => {
+        if (transactions.length === 0) return toast.error("No data to export")
+        const headers = ["Tx ID", "Date", "Amount", "Description", "Reference"]
+        const csv = [
+            headers.join(","),
+            ...transactions.map(t => [
+                t.txId,
+                new Date(t.date).toLocaleDateString(),
+                t.amount,
+                `"${t.description || ""}"`,
+                t.referenceId || ""
+            ].join(","))
+        ].join("\n")
+
+        const blob = new Blob([csv], { type: "text/csv" })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `recharge_history_${new Date().toISOString().split('T')[0]}.csv`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+    }
+
+    const handlePrint = () => {
+        window.print()
+    }
+
     return (
         <DashboardLayout title="Recharge History">
             <div className="space-y-6">
-                <Card>
+                <Card className="no-print">
                     <CardHeader className="bg-pink-50 border-b border-pink-100">
                         <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
                             <History className="h-5 w-5" />
@@ -100,21 +132,23 @@ export default function RechargeHistory() {
                                 <Input
                                     type="date"
                                     className="bg-white border-gray-200"
-                                    value={filters.dateFrom}
-                                    onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                                    value={filters.date}
+                                    onChange={(e) => setFilters({ ...filters, date: e.target.value })}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label>Date To</Label>
+                                <Label>Amount</Label>
                                 <Input
-                                    type="date"
+                                    type="number"
+                                    placeholder="Exact Amount"
                                     className="bg-white border-gray-200"
-                                    value={filters.dateTo}
-                                    onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                                    value={filters.amount}
+                                    onChange={(e) => setFilters({ ...filters, amount: e.target.value })}
                                 />
                             </div>
                         </div>
-                        <div className="flex justify-end space-x-2">
+                        <div className="flex justify-end gap-2">
+                            <Button variant="outline" onClick={handleClear}>Clear</Button>
                             <Button onClick={fetchTransactions} className="bg-blue-900 hover:bg-blue-800">
                                 {searching ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                                 Search
@@ -123,9 +157,13 @@ export default function RechargeHistory() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader className="bg-pink-50 border-b border-pink-100">
+                <Card className="print-safe">
+                    <CardHeader className="bg-pink-50 border-b border-pink-100 flex flex-row justify-between items-center">
                         <CardTitle className="text-lg text-gray-800">Recharge Records</CardTitle>
+                        <div className="flex gap-2 no-print">
+                            <Button size="sm" variant="outline" onClick={handleExport}>Download CSV</Button>
+                            <Button size="sm" variant="outline" onClick={handlePrint}>Print</Button>
+                        </div>
                     </CardHeader>
                     <CardContent className="pt-6">
                         <div className="overflow-x-auto">
@@ -164,6 +202,12 @@ export default function RechargeHistory() {
                         </div>
                     </CardContent>
                 </Card>
+                <style jsx global>{`
+                    @media print {
+                        .no-print { display: none !important; }
+                        .print-safe { box-shadow: none !important; border: none !important; }
+                    }
+                `}</style>
             </div>
         </DashboardLayout>
     )
