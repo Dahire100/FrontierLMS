@@ -59,9 +59,25 @@ exports.getAllClasswork = async (req, res) => {
 
     try {
         const query = { schoolId };
-        if (classId) query.classId = classId;
-        if (subject) query.subject = subject;
-        if (status) query.status = status;
+        if (classId && classId !== 'all') query.classId = classId;
+        if (subject && subject !== 'all') query.subject = subject;
+        if (status && status !== 'all') query.status = status;
+
+        // Keyword Search
+        if (req.query.keyword) {
+            query.$or = [
+                { title: { $regex: req.query.keyword, $options: 'i' } },
+                { description: { $regex: req.query.keyword, $options: 'i' } }
+            ];
+        }
+
+        // Date Range Filter
+        if (req.query.startDate && req.query.endDate) {
+            query.assignedDate = {
+                $gte: new Date(req.query.startDate),
+                $lte: new Date(new Date(req.query.endDate).setHours(23, 59, 59))
+            };
+        }
 
         const classwork = await Classwork.find(query)
             .populate('teacherId', 'firstName lastName')

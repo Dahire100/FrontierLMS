@@ -18,7 +18,7 @@ const noticeSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['general', 'urgent', 'holiday', 'exam', 'event', 'circular'],
+    enum: ['general', 'urgent', 'holiday', 'exam', 'event', 'circular', 'diary'],
     default: 'general'
   },
   publishedDate: {

@@ -3,6 +3,7 @@
 import { API_URL } from "@/lib/api-config"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import DashboardLayout from "@/components/dashboard-layout"
 import { StatCard } from "@/components/super-admin/stat-card"
 import { StatusBadge } from "@/components/super-admin/status-badge"
@@ -19,10 +20,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 interface Message {
   id: string
   recipient: string
-  type: "Email" | "SMS" | "Push"
+  type: "Email" | "SMS" | "Push" | "Internal"
   subject: string
   date: string
-  status: "Sent" | "Pending" | "Failed"
+  status: string
   recipientCount: number
   content?: string
 }
@@ -69,15 +70,16 @@ export default function Communicate() {
       });
       if (response.ok) {
         const data = await response.json();
-        const mappedData = data.map((item: any) => ({
+        // Backend now returns unified list (Internal + Broadcast)
+        const mappedData = (data.data || data).map((item: any) => ({
           id: item._id,
-          recipient: item.recipientRole || "All",
-          type: item.type || "Email",
+          recipient: item.recipientName ? `${item.recipientName} (${item.recipientRole})` : (item.recipientRole || "All"),
+          type: item.type ? (item.type.charAt(0).toUpperCase() + item.type.slice(1)) : "Internal",
           subject: item.subject,
           date: item.createdAt,
-          status: "Sent", // Assuming if it's in sent it's sent
-          recipientCount: 1, // Defaulting if not provided
-          content: item.content
+          status: item.status ? (item.status.charAt(0).toUpperCase() + item.status.slice(1)) : "Sent",
+          recipientCount: 1,
+          content: item.message || item.content
         }));
         setMessages(mappedData);
       }
@@ -167,7 +169,8 @@ export default function Communicate() {
         const styles = {
           Email: { icon: Mail, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100" },
           SMS: { icon: MessageSquare, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100" },
-          Push: { icon: bellRing, color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-100" }
+          Push: { icon: bellRing, color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-100" },
+          Internal: { icon: MessageSquare, color: "text-gray-600", bg: "bg-gray-50", border: "border-gray-100" }
         }
         const s = styles[value as keyof typeof styles] || styles.Email;
         return (
@@ -240,12 +243,20 @@ export default function Communicate() {
             </h1>
             <p className="text-sm text-gray-500">Dispatch alerts, newsletters and emergency notices across the institute</p>
           </div>
-          <Button
-            onClick={() => { setIsModalOpen(true) }}
-            className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 gap-2 h-11 px-6 rounded-xl"
-          >
-            <Send className="h-4 w-4" /> Dispatch Message
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              variant="outline"
+              className="gap-2 h-11 px-6 rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+            >
+              <MessageSquare className="h-4 w-4" /> Internal Msg
+            </Button>
+            <Link href="/dashboard/admin/communicate/send-email-sms">
+              <span className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 h-11 px-6 rounded-xl shadow-lg shadow-indigo-100">
+                <Send className="h-4 w-4" /> Broadcast (Email/SMS)
+              </span>
+            </Link>
+          </div>
         </div>
 
         {/* Stats Grid */}

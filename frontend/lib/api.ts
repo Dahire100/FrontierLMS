@@ -8,9 +8,9 @@ export async function apiCall<T>(
   options?: RequestInit
 ): Promise<T> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  
+
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -21,6 +21,13 @@ export async function apiCall<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+    }
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(error.error || `API Error: ${response.statusText}`);
   }

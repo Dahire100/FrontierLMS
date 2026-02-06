@@ -60,7 +60,18 @@ exports.getNoticeById = async (req, res) => {
 // Create notice
 exports.createNotice = async (req, res) => {
   try {
-    const { schoolId, userId } = req.user;
+    // Robustly get user ID and School ID
+    const userId = req.user.userId || req.user._id;
+    const schoolId = req.user.schoolId;
+
+    if (!userId || !schoolId) {
+      console.error("Missing User ID or School ID in request", { userId, schoolId });
+      return res.status(400).json({
+        success: false,
+        error: 'User context missing (School ID or User ID not found).'
+      });
+    }
+
     const { title, description, type, expiryDate, targetAudience, attachments, isPinned } = req.body;
 
     const newNotice = new Notice({
@@ -84,9 +95,11 @@ exports.createNotice = async (req, res) => {
     });
   } catch (err) {
     console.error('Error creating notice:', err);
+    // Return specific validation error if available
+    const errorMessage = err.message || 'Failed to create notice';
     res.status(500).json({
       success: false,
-      error: 'Failed to create notice'
+      error: errorMessage
     });
   }
 };

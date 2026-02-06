@@ -7,6 +7,9 @@ const { verifyToken } = require('../middleware/auth');
 // Send message
 router.post('/', verifyToken, communicationController.sendMessage);
 
+// Send Broadcast (Email/SMS)
+router.post('/broadcast', verifyToken, communicationController.sendBroadcast);
+
 // Get inbox
 router.get('/inbox', verifyToken, communicationController.getInbox);
 
