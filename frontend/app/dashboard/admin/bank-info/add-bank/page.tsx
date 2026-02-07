@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { apiFetch, API_ENDPOINTS } from "@/lib/api-config"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,11 +9,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Banknote, Pencil, Trash2 } from "lucide-react"
+import { Banknote, Pencil, Trash2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter, useSearchParams } from "next/navigation"
 
-export default function AddBank() {
+function AddBankContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const editId = searchParams?.get("id")
@@ -261,6 +261,14 @@ export default function AddBank() {
                 </Card>
             </div>
         </DashboardLayout>
+    )
+}
+
+export default function AddBank() {
+    return (
+        <Suspense fallback={<div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-blue-900" /></div>}>
+            <AddBankContent />
+        </Suspense>
     )
 }
 
