@@ -21,15 +21,26 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+        const allowedTypes = [
+            'image/jpeg', 'image/png', 'image/jpg', 'image/webp',
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'text/plain',
+            'text/csv'
+        ];
         if (allowedTypes.includes(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error('Invalid file type. Only JPEG, PNG, and WebP images are allowed.'));
+            cb(new Error('Invalid file type. Allowed types: Images, PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV.'));
         }
     },
     limits: {
-        fileSize: 2 * 1024 * 1024 // 2MB limit for profile picture
+        fileSize: 10 * 1024 * 1024 // 10MB limit
     }
 });
 

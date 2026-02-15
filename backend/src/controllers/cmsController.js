@@ -7,10 +7,22 @@ const Notice = require('../models/Notice');
 const Menu = require('../models/Menu');
 const Media = require('../models/Media');
 
+const mongoose = require('mongoose');
+
+// Helper for safe ID
+const getSchoolId = (req) => {
+    const sid = req.user.schoolId;
+    if (typeof sid === 'string' && mongoose.Types.ObjectId.isValid(sid)) {
+        return new mongoose.Types.ObjectId(sid);
+    }
+    return sid;
+};
+
 // --- Pages ---
 exports.getPages = async (req, res) => {
     try {
-        const pages = await CMSPage.find({ schoolId: req.user.schoolId }).sort({ createdAt: -1 });
+        const schoolId = getSchoolId(req);
+        const pages = await CMSPage.find({ schoolId }).sort({ createdAt: -1 });
         res.json({ success: true, data: pages });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -54,7 +66,8 @@ exports.deletePage = async (req, res) => {
 // --- Banner Images ---
 exports.getBanners = async (req, res) => {
     try {
-        const banners = await BannerImage.find({ schoolId: req.user.schoolId }).sort({ order: 1 });
+        const schoolId = getSchoolId(req);
+        const banners = await BannerImage.find({ schoolId }).sort({ order: 1 });
         res.json({ success: true, data: banners });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -98,7 +111,8 @@ exports.deleteBanner = async (req, res) => {
 // --- Gallery ---
 exports.getGalleries = async (req, res) => {
     try {
-        const galleries = await Gallery.find({ schoolId: req.user.schoolId }).sort({ createdAt: -1 });
+        const schoolId = getSchoolId(req);
+        const galleries = await Gallery.find({ schoolId }).sort({ createdAt: -1 });
         res.json({ success: true, data: galleries });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -142,7 +156,8 @@ exports.deleteGallery = async (req, res) => {
 // --- Testimonials ---
 exports.getTestimonials = async (req, res) => {
     try {
-        const testimonials = await Testimonial.find({ schoolId: req.user.schoolId }).sort({ createdAt: -1 });
+        const schoolId = getSchoolId(req);
+        const testimonials = await Testimonial.find({ schoolId }).sort({ createdAt: -1 });
         res.json({ success: true, data: testimonials });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -189,7 +204,8 @@ exports.getCMSEvents = async (req, res) => {
     try {
         // Maybe filter by 'public' or similar if we add such field later.
         // For now, return all upcoming events for the school.
-        const events = await Event.find({ schoolId: req.user.schoolId }).sort({ eventDate: 1 });
+        const schoolId = getSchoolId(req);
+        const events = await Event.find({ schoolId }).sort({ eventDate: 1 });
         res.json(events);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -199,7 +215,8 @@ exports.getCMSEvents = async (req, res) => {
 // --- Notices (Using existing Notice model) ---
 exports.getCMSNotices = async (req, res) => {
     try {
-        const notices = await Notice.find({ schoolId: req.user.schoolId }).sort({ date: -1 });
+        const schoolId = getSchoolId(req);
+        const notices = await Notice.find({ schoolId }).sort({ date: -1 });
         res.json(notices);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -209,7 +226,8 @@ exports.getCMSNotices = async (req, res) => {
 // --- Menus ---
 exports.getMenus = async (req, res) => {
     try {
-        const menus = await Menu.find({ schoolId: req.user.schoolId }).sort({ createdAt: -1 });
+        const schoolId = getSchoolId(req);
+        const menus = await Menu.find({ schoolId }).sort({ createdAt: -1 });
         res.json({ success: true, data: menus });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -254,7 +272,8 @@ exports.deleteMenu = async (req, res) => {
 exports.getMedia = async (req, res) => {
     try {
         const { type } = req.query;
-        const query = { schoolId: req.user.schoolId };
+        const schoolId = getSchoolId(req);
+        const query = { schoolId };
         if (type && type !== 'all') {
             query.type = type;
         }
@@ -267,12 +286,49 @@ exports.getMedia = async (req, res) => {
 
 exports.createMedia = async (req, res) => {
     try {
-        // In a real app, file upload handling would happen here (e.g., multer S3/local storage)
-        // For now, we assume simple metadata creation with a URL
-        const media = new Media({ ...req.body, schoolId: req.user.schoolId, uploadedBy: req.user.userId || req.user._id });
+        if (!req.file && !req.body.url) {
+            return res.status(400).json({ message: 'No file uploaded or URL provided' });
+        }
+
+        let mediaData = {};
+
+        if (req.file) {
+            const { originalname, mimetype, filename, size } = req.file;
+            // Determine type based on mimetype
+            let type = 'document';
+            if (mimetype.startsWith('image/')) type = 'image';
+            else if (mimetype.startsWith('video/')) type = 'video';
+            else if (mimetype === 'application/pdf') type = 'pdf';
+
+            // Construct URL
+            const url = `/uploads/documents/${filename}`;
+
+            mediaData = {
+                name: req.body.name || originalname,
+                type: type,
+                url: url,
+                size: size
+            };
+        } else if (req.body.url) {
+            // Check for YouTube specifically or general strict video type
+            mediaData = {
+                name: req.body.name || 'External Link',
+                type: req.body.type || 'video', // Default to video for YT links
+                url: req.body.url,
+                size: req.body.size || 0
+            };
+        }
+
+        const media = new Media({
+            schoolId: req.user.schoolId,
+            uploadedBy: req.user.userId || req.user._id,
+            ...mediaData
+        });
+
         await media.save();
         res.status(201).json({ success: true, data: media });
     } catch (error) {
+        console.error('Media upload error:', error);
         res.status(400).json({ message: error.message });
     }
 };

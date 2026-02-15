@@ -157,7 +157,14 @@ export default function PagesPage() {
       key: "status",
       label: "Visibility",
       sortable: true,
-      render: (value: string) => <StatusBadge status={value} />
+      render: (value: string) => {
+        const statusMap: Record<string, "success" | "warning" | "default"> = {
+          "Published": "success",
+          "Draft": "warning",
+          "Scheduled": "default"
+        };
+        return <StatusBadge status={value} variant={statusMap[value] || "default"} />;
+      }
     },
     {
       key: "updatedAt",

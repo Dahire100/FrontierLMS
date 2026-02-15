@@ -53,7 +53,7 @@ export default function InstallmentReportPage() {
                 const token = localStorage.getItem('token');
                 if (!token) return;
 
-                const response = await fetch(`${API_URL}/api/fees`, {
+                const response = await fetch(`${API_URL}/api/subscription/installments`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }

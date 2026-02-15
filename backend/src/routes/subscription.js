@@ -13,7 +13,7 @@ router.post('/plans', subscriptionController.createPlan);
 router.put('/plans/:id', subscriptionController.updatePlan);
 router.delete('/plans/:id', subscriptionController.deletePlan);
 
-// Installment Report (Placeholder for now, could be a separate controller method or aggregated data)
-// router.get('/installments', subscriptionController.getInstallmentReport);
+// Installment Report
+router.get('/installments', subscriptionController.getInstallmentReport);
 
 module.exports = router;

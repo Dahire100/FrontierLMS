@@ -38,3 +38,17 @@ exports.deletePlan = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+exports.getInstallmentReport = async (req, res) => {
+    try {
+        // TODO: Implement actual database query for subscription installments
+        // This is a mock response to demonstrate functionality
+        const mockData = [
+            { _id: '1', dueDate: new Date().toISOString(), amount: 5000, status: 'paid' },
+            { _id: '2', dueDate: new Date(Date.now() + 86400000 * 30).toISOString(), amount: 5000, status: 'due' }
+        ];
+        res.json(mockData);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

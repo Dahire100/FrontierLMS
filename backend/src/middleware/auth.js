@@ -13,7 +13,7 @@ exports.authenticateToken = (req, res, next) => {
   jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret_for_development_only', async (err, decoded) => {
     if (err) {
       console.log('❌ JWT verification failed:', err.message);
-      return res.status(403).json({ error: 'Invalid token.' });
+      return res.status(403).json({ error: 'Invalid token', details: err.message });
     }
 
     console.log('✅ JWT decoded successfully. User ID:', decoded.userId, 'Role:', decoded.role);
@@ -21,11 +21,22 @@ exports.authenticateToken = (req, res, next) => {
     try {
       // Find user in MongoDB and ensure active
       const user = await User.findOne({ _id: decoded.userId, isActive: true }).lean();
+
+      // Check if password was changed after token issuance
+      if (user && user.lastPasswordReset) {
+        const tokenTimestamp = decoded.iat * 1000;
+        const resetTimestamp = new Date(user.lastPasswordReset).getTime();
+        if (tokenTimestamp < resetTimestamp) {
+          console.log('❌ Token invalid due to password change.');
+          return res.status(401).json({ error: 'Session expired. Please log in again.' });
+        }
+      }
+
       console.log('🔍 User lookup result:', user ? `Found: ${user.email}` : 'NOT FOUND');
 
       if (!user) {
         console.log('❌ User not found or inactive for ID:', decoded.userId);
-        return res.status(403).json({ error: 'User not found or inactive.' });
+        return res.status(403).json({ error: 'User not found or inactive.', userId: decoded.userId });
       }
 
       // Attach user info to request

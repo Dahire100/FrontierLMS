@@ -12,10 +12,11 @@ import { cn } from "@/lib/utils"
 export interface FormField {
   name: string
   label: string
-  type: "text" | "email" | "number" | "date" | "select" | "textarea"
+  type: "text" | "email" | "number" | "date" | "time" | "select" | "textarea" | "file"
   required?: boolean
   placeholder?: string
   options?: { value: string; label: string }[]
+  accept?: string // For file inputs
 }
 
 interface FormModalProps {
@@ -30,7 +31,6 @@ interface FormModalProps {
 }
 
 export default function FormModal({ isOpen, title, description, subtitle, fields, initialData, onSubmit, onClose }: FormModalProps) {
-  // Support both description and subtitle for backwards compatibility
   const modalDescription = description || subtitle;
   const [formData, setFormData] = useState(initialData || {})
 
@@ -40,12 +40,19 @@ export default function FormModal({ isOpen, title, description, subtitle, fields
 
   if (!isOpen) return null
 
-  // Determine if this is a "long form" that benefits from grid layout
   const isLongForm = fields.length > 5
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev: any) => ({ ...prev, [name]: value }))
+    const { name } = e.target
+    if (e.target.type === 'file') {
+      const files = (e.target as HTMLInputElement).files
+      if (files && files[0]) {
+        setFormData((prev: any) => ({ ...prev, [name]: files[0] }))
+      }
+    } else {
+      const { value } = e.target
+      setFormData((prev: any) => ({ ...prev, [name]: value }))
+    }
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -109,6 +116,24 @@ export default function FormModal({ isOpen, title, description, subtitle, fields
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm min-h-[100px] resize-none transition-all"
                     rows={4}
                   />
+                ) : field.type === "file" ? (
+                  <div className="flex flex-col gap-2">
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type="file"
+                      accept={field.accept}
+                      onChange={handleChange}
+                      required={field.required && !formData[field.name]} // Required only if no value
+                      className="bg-white border-gray-300 focus:border-primary focus:ring-primary/20"
+                    />
+                    {/* Show preview if it's an image and already has value (url or file) */}
+                    {formData[field.name] && (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {typeof formData[field.name] === 'string' ? 'Current file: ' + formData[field.name].split('/').pop() : 'Selected: ' + formData[field.name].name}
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <Input
                     id={field.name}

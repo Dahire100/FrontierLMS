@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const cmsController = require('../controllers/cmsController');
 const { verifyToken, verifyRole } = require('../middleware/auth');
+const upload = require('../middleware/documentUpload');
 
 // Apply middleware to all routes
 router.use(verifyToken);
@@ -39,7 +40,7 @@ router.delete('/menus/:id', cmsController.deleteMenu);
 
 // Media
 router.get('/media', cmsController.getMedia);
-router.post('/media', cmsController.createMedia);
+router.post('/media', upload.single('file'), cmsController.createMedia);
 router.delete('/media/:id', cmsController.deleteMedia);
 
 // Events & Notices (Read-only or managed via this endpoint for CMS views)

@@ -225,6 +225,8 @@ exports.changePassword = async (req, res) => {
             user.password = hashed;
         }
 
+        user.lastPasswordReset = new Date(); // Invalidate all existing sessions
+
         await user.save();
 
         res.json({ message: 'Password changed successfully' });

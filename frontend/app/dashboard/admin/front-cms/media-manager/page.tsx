@@ -2,7 +2,7 @@
 
 import { API_URL } from "@/lib/api-config"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -74,14 +74,26 @@ export default function MediaManagerPage() {
       if (response.ok) {
         const result = await response.json();
         const data = result.data || result;
-        const mappedMedia = data.map((item: any) => ({
-          id: item._id,
-          name: item.name,
-          type: item.type,
-          url: item.url,
-          thumbnail: item.thumbnail || "/placeholder.svg",
-          size: item.size || "120 KB"
-        }));
+        const mappedMedia = data.map((item: any) => {
+          let formattedSize = "0 KB";
+          if (item.size) {
+            const sizeInBytes = Number(item.size);
+            if (sizeInBytes < 1024 * 1024) {
+              formattedSize = `${(sizeInBytes / 1024).toFixed(1)} KB`;
+            } else {
+              formattedSize = `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+            }
+          }
+
+          return {
+            id: item._id,
+            name: item.name,
+            type: item.type,
+            url: item.url.startsWith('http') ? item.url : `${API_URL}${item.url}`, // Ensure full URL
+            thumbnail: item.thumbnail || "/placeholder.svg",
+            size: formattedSize
+          };
+        });
         setMedia(mappedMedia);
       }
     } catch (error) {
@@ -116,33 +128,75 @@ export default function MediaManagerPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // In a real scenario, this would be a FormData upload
-    // For now, we simulate the metadata creation as per our backend simplified controller
     toast({ title: "Uploading", description: `Processing ${file.name}...` });
 
     try {
       const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('name', file.name); // Optional: Allow user to rename
+
       const response = await fetch(`${API_URL}/api/cms/media`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
+          // Content-Type is set automatically with FormData
         },
-        body: JSON.stringify({
-          name: file.name,
-          type: file.type,
-          url: URL.createObjectURL(file), // Local preview URL
-          size: `${(file.size / 1024).toFixed(1)} KB`
-        })
+        body: formData
       });
 
       if (response.ok) {
         toast({ title: "Success", description: "Media uploaded successfully." });
         fetchMedia();
+      } else {
+        const err = await response.json();
+        throw new Error(err.message || "Upload failed");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading:', error);
-      toast({ title: "Error", description: "Upload failed.", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Upload failed.", variant: "destructive" });
+    }
+  };
+
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+
+  const handleAddYoutube = async () => {
+    if (!youtubeUrl) return;
+
+    // Simple validation (can be enhanced)
+    if (!youtubeUrl.includes('youtube.com') && !youtubeUrl.includes('youtu.be')) {
+      toast({ title: "Invalid URL", description: "Please enter a valid YouTube URL.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('name', 'YouTube Video');
+      formData.append('type', 'video');
+      formData.append('url', youtubeUrl);
+      formData.append('size', '0');
+
+      const response = await fetch(`${API_URL}/api/cms/media`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+          // No Content-Type header directly, let browser set multipart/form-data boundry
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        toast({ title: "Success", description: "YouTube link added." });
+        setYoutubeUrl(""); // Clear input
+        fetchMedia();
+      } else {
+        const err = await response.json();
+        throw new Error(err.message || "Failed to add link");
+      }
+    } catch (error: any) {
+      console.error('Error adding youtube link:', error);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -164,6 +218,8 @@ export default function MediaManagerPage() {
     docs: media.filter(m => !m.type.includes('image') && !m.type.includes('video')).length
   }
 
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   return (
     <DashboardLayout title="Media Assets">
       <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
@@ -178,7 +234,10 @@ export default function MediaManagerPage() {
             <p className="text-sm text-gray-500">Manage all your website images, videos, and documents</p>
           </div>
           <div className="flex gap-2">
-            <Button className="bg-indigo-600 hover:bg-indigo-700 gap-2 shadow-lg shadow-indigo-100 h-11 px-6 rounded-xl font-semibold">
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 gap-2 shadow-lg shadow-indigo-100 h-11 px-6 rounded-xl font-semibold"
+              onClick={() => fileInputRef.current?.click()}
+            >
               <Plus size={18} /> New Upload
             </Button>
           </div>
@@ -238,8 +297,10 @@ export default function MediaManagerPage() {
                   <p className="text-[11px] text-gray-500 mt-1">PNG, JPG, PDF up to 10MB</p>
                   <input
                     type="file"
+                    ref={fileInputRef}
                     className="absolute inset-0 opacity-0 cursor-pointer"
                     onChange={handleUpload}
+                    accept="image/*,video/*,application/pdf"
                   />
                 </div>
 
@@ -247,8 +308,19 @@ export default function MediaManagerPage() {
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-gray-600 uppercase">YouTube Integration</Label>
                     <div className="flex gap-2">
-                      <Input placeholder="Youtube URL..." className="h-9 text-xs" />
-                      <Button size="sm" className="bg-red-600 hover:bg-red-700 h-9">Add</Button>
+                      <Input
+                        placeholder="Youtube URL..."
+                        className="h-9 text-xs"
+                        value={youtubeUrl}
+                        onChange={(e) => setYoutubeUrl(e.target.value)}
+                      />
+                      <Button
+                        size="sm"
+                        className="bg-red-600 hover:bg-red-700 h-9"
+                        onClick={handleAddYoutube}
+                      >
+                        Add
+                      </Button>
                     </div>
                   </div>
                 </div>

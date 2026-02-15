@@ -10,8 +10,10 @@ import FormModal, { FormField } from "@/components/form-modal"
 import { ConfirmationDialog } from "@/components/super-admin/confirmation-dialog"
 import { StatusBadge } from "@/components/super-admin/status-badge"
 import { Button } from "@/components/ui/button"
-import { Plus, Image as ImageIcon, Layout, Eye, Camera, CheckCircle } from "lucide-react"
+import { Plus, Image as ImageIcon, Layout, Eye, Camera, CheckCircle, Download, Printer } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
 
 interface GalleryItem {
   id: string
@@ -31,6 +33,8 @@ export default function GalleryPage() {
     open: false,
     id: null
   })
+
+  const [initialFormData, setInitialFormData] = useState<any>(undefined)
 
   useEffect(() => {
     fetchGallery();
@@ -66,55 +70,76 @@ export default function GalleryPage() {
     }
   };
 
-  const handleAdd = async (data: any) => {
+  const handleSave = async (data: any) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/cms/galleries`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...data,
-          isActive: data.isActive === 'true' || data.isActive === true,
-          images: []
-        })
-      });
-      if (response.ok) {
-        toast({ title: "Success", description: "Gallery created." });
-        fetchGallery();
-        setIsModalOpen(false);
-      }
-    } catch (error) {
-      console.error('Error adding gallery:', error);
-      toast({ title: "Error", description: "Failed to create gallery.", variant: "destructive" });
-    }
-  };
 
-  const handleEdit = async (id: string, data: any) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/cms/galleries/${id}`, {
-        method: 'PUT',
+      let thumbnail = editingId
+        ? (gallery.find(g => g.id === editingId)?.thumbnail || "")
+        : "";
+
+      // Handle file upload if present
+      if (data.thumbnail && data.thumbnail instanceof File) {
+        try {
+          const formData = new FormData();
+          formData.append('file', data.thumbnail);
+
+          const uploadRes = await fetch(`${API_URL}/api/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+          });
+
+          if (uploadRes.ok) {
+            const uploadResult = await uploadRes.json();
+            if (uploadResult.success) {
+              thumbnail = uploadResult.file.url;
+            }
+          } else {
+            console.error("Upload failed");
+            toast({ title: "Upload Warning", description: "Could not upload image.", variant: "destructive" });
+          }
+        } catch (e) {
+          console.error("Upload error", e);
+        }
+      } else if (typeof data.thumbnail === 'string' && data.thumbnail.startsWith('http')) {
+        // If user manually entered URL (if we allow text input fallback, but here we prioritize file)
+        thumbnail = data.thumbnail;
+      }
+
+      const url = editingId
+        ? `${API_URL}/api/cms/galleries/${editingId}`
+        : `${API_URL}/api/cms/galleries`;
+
+      const payload = {
+        title: data.title,
+        description: data.description,
+        thumbnail: thumbnail,
+        isActive: data.isActive === 'true' || data.isActive === true,
+        images: [] // Initially empty, management of images inside gallery might be separate or part of edit
+      };
+
+      const response = await fetch(url, {
+        method: editingId ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...data,
-          isActive: data.isActive === 'true' || data.isActive === true
-        })
+        body: JSON.stringify(payload)
       });
+
       if (response.ok) {
-        toast({ title: "Success", description: "Gallery updated." });
+        toast({ title: "Success", description: `Gallery ${editingId ? "updated" : "created"}.` });
         fetchGallery();
         setIsModalOpen(false);
         setEditingId(null);
+        setInitialFormData(undefined);
+      } else {
+        throw new Error("Failed to save gallery");
       }
-    } catch (error) {
-      console.error('Error updating gallery:', error);
-      toast({ title: "Error", description: "Failed to update gallery.", variant: "destructive" });
+    } catch (error: any) {
+      console.error('Error saving gallery:', error);
+      toast({ title: "Error", description: error.message || "Failed to save gallery.", variant: "destructive" });
     }
   };
 
@@ -138,23 +163,56 @@ export default function GalleryPage() {
     }
   };
 
+  const handleDownloadPDF = (row: GalleryItem) => {
+    const doc = new jsPDF()
+    doc.text(`Gallery: ${row.title}`, 20, 20)
+    doc.text(`Description: ${row.description || 'N/A'}`, 20, 30)
+    doc.save(`${row.title}.pdf`)
+  }
+
+  const handlePrint = (row: GalleryItem) => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+          <html>
+            <head><title>${row.title}</title></head>
+            <body>
+              <h1>${row.title}</h1>
+              <p>${row.description || ''}</p>
+              ${row.thumbnail ? `<img src="${API_URL}${row.thumbnail}" style="max-width:100%;"/>` : ''}
+              <script>window.print();window.close();</script>
+            </body>
+          </html>
+        `);
+      printWindow.document.close();
+    }
+  }
+
   const columns = [
     {
       key: "title",
       label: "Gallery Portfolio",
       sortable: true,
       render: (value: string, row: GalleryItem) => (
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center gap-4 group">
+          <div className="h-12 w-16 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0 shadow-sm relative">
             {row.thumbnail ? (
-              <img src={row.thumbnail} alt={value} className="w-full h-full object-cover" />
+              <img
+                src={`${row.thumbnail.startsWith('http') ? row.thumbnail : `${API_URL}${row.thumbnail}`}`}
+                alt={value}
+                className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/placeholder.svg';
+                }}
+              />
             ) : (
-              <ImageIcon className="text-gray-300 h-5 w-5" />
+              <ImageIcon className="text-gray-300 h-6 w-6" />
             )}
+            <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-gray-900">{value}</span>
-            <span className="text-[10px] text-gray-400 font-medium uppercase truncate max-w-[200px]">
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-gray-900 truncate text-sm">{value}</span>
+            <span className="text-[11px] text-gray-500 font-medium truncate max-w-[240px]">
               {row.description || "No description provided"}
             </span>
           </div>
@@ -172,7 +230,7 @@ export default function GalleryPage() {
   const formFields: FormField[] = [
     { name: "title", label: "Gallery Title", type: "text", required: true, placeholder: "e.g. Annual Day 2024" },
     { name: "description", label: "Brief Description", type: "textarea", required: false, placeholder: "Describe the event or album..." },
-    { name: "thumbnail", label: "Cover Image URL", type: "text", required: false, placeholder: "https://..." },
+    { name: "thumbnail", label: "Cover Image", type: "file", accept: "image/*", required: false },
     {
       name: "isActive",
       label: "Visibility",
@@ -199,7 +257,7 @@ export default function GalleryPage() {
             <p className="text-sm text-gray-500">Organize and showcase institute events, facilities and achievements</p>
           </div>
           <Button
-            onClick={() => { setEditingId(null); setIsModalOpen(true); }}
+            onClick={() => { setEditingId(null); setInitialFormData(undefined); setIsModalOpen(true); }}
             className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 gap-2 h-11 px-6 rounded-xl"
           >
             <Plus className="h-4 w-4" /> Create Gallery
@@ -249,12 +307,30 @@ export default function GalleryPage() {
           loading={loading}
           searchable
           searchPlaceholder="Audit gallery titles or descriptions..."
+          searchFields={['title', 'description']}
           pagination
           onEdit={(row) => {
             setEditingId(row.id);
+            setInitialFormData({
+              ...row,
+              isActive: row.isActive.toString(),
+              thumbnail: row.thumbnail // Passes existing URL, handled by FormModal preview
+            });
             setIsModalOpen(true);
           }}
           onDelete={(row) => setDeleteConfirm({ open: true, id: row.id })}
+          actions={[
+            {
+              label: "Download",
+              onClick: (row: any) => handleDownloadPDF(row),
+              icon: <Download className="h-4 w-4 mr-2" />
+            },
+            {
+              label: "Print",
+              onClick: (row: any) => handlePrint(row),
+              icon: <Printer className="h-4 w-4 mr-2" />
+            }
+          ]}
         />
 
         <FormModal
@@ -262,14 +338,12 @@ export default function GalleryPage() {
           onClose={() => {
             setIsModalOpen(false);
             setEditingId(null);
+            setInitialFormData(undefined);
           }}
           title={editingId ? "Modify Gallery Details" : "New Visual Collection"}
           fields={formFields}
-          initialData={editingId ? {
-            ...gallery.find(g => g.id === editingId),
-            isActive: gallery.find(g => g.id === editingId)?.isActive.toString()
-          } : undefined}
-          onSubmit={(data: any) => editingId ? handleEdit(editingId, data) : handleAdd(data)}
+          initialData={initialFormData}
+          onSubmit={handleSave}
         />
 
         <ConfirmationDialog

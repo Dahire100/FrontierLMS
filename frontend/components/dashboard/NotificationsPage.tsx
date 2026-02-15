@@ -8,9 +8,33 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useRouter } from "next/navigation"
-import { Bell, Check, Trash2, Info, AlertTriangle, CheckCircle, AlertCircle, Clock, Filter, Archive, ExternalLink } from "lucide-react"
+import { Bell, Check, Trash2, Info, AlertTriangle, CheckCircle, AlertCircle, Clock, Filter, Archive, ExternalLink, Search, X } from "lucide-react"
+import { toast } from "sonner"
+import { formatDistanceToNow, isToday, isYesterday } from "date-fns"
+import { Input } from "@/components/ui/input"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+    DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu"
 
-// ... (existing code)
+interface Notification {
+    _id: string
+    title: string
+    message: string
+    type: 'info' | 'warning' | 'success' | 'error' | 'alert'
+    isRead: boolean
+    createdAt: string
+    link?: string
+    sender?: {
+        name: string
+        role: string
+    }
+}
 
 function NotificationList({ groups, loading, onDelete, onRead, getIcon }: any) {
     const router = useRouter()
@@ -26,19 +50,18 @@ function NotificationList({ groups, loading, onDelete, onRead, getIcon }: any) {
                 <Bell className="h-10 w-10 text-gray-300" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900">All caught up!</h3>
-            <p className="text-gray-500 mt-2 max-w-sm">You have no new notifications at the moment. Check back later for updates.</p>
+            <p className="text-gray-500 mt-2 max-w-sm">You have no new notifications at the moment.</p>
         </div>
     )
 
     const handleNotificationClick = (notification: any) => {
+        // Mark as read immediately when clicked
+        if (!notification.isRead) {
+            onRead(notification._id)
+        }
+
         if (notification.link) {
             router.push(notification.link);
-        } else {
-            // If no link, maybe just toggle read status? 
-            // For now, doing nothing or maybe toggle read if user requested "open" as in "mark read"
-            if (!notification.isRead) {
-                onRead(notification._id)
-            }
         }
     }
 
@@ -47,46 +70,56 @@ function NotificationList({ groups, loading, onDelete, onRead, getIcon }: any) {
             {Object.entries(groups).map(([label, items]: [string, any]) => (
                 items.length > 0 && (
                     <div key={label} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1">{label}</h3>
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span> {label}
+                        </h3>
                         <div className="space-y-3">
                             {items.map((notification: any) => (
                                 <div
                                     key={notification._id}
                                     onClick={() => handleNotificationClick(notification)}
-                                    className={`group relative overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-md ${notification.isRead ? 'bg-white border-gray-100' : 'bg-blue-50/50 border-blue-100 shadow-sm ring-1 ring-blue-50'} ${notification.link ? 'cursor-pointer hover:border-blue-300' : ''}`}
+                                    className={`group relative overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-md ${notification.isRead ? 'bg-white border-gray-100' : 'bg-blue-50/40 border-blue-100 shadow-sm'} ${notification.link ? 'cursor-pointer hover:border-blue-300' : ''}`}
                                 >
                                     {!notification.isRead && (
                                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
                                     )}
                                     <div className="p-4 sm:p-5 flex gap-4">
-                                        <div className={`mt-1 h-10 w-10 shrink-0 rounded-full flex items-center justify-center ${notification.isRead ? 'bg-gray-100' : 'bg-white shadow-sm'}`}>
+                                        <div className={`mt-1 h-10 w-10 shrink-0 rounded-full flex items-center justify-center ${notification.isRead ? 'bg-gray-100' : 'bg-white shadow-sm ring-1 ring-gray-100'}`}>
                                             {getIcon(notification.type)}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-start justify-between gap-4">
-                                                <div>
-                                                    <h4 className={`text-base font-semibold ${notification.isRead ? 'text-gray-900' : 'text-blue-900'} flex items-center gap-2`}>
-                                                        {notification.title}
-                                                        {notification.link && <ExternalLink className="h-3 w-3 opacity-50" />}
-                                                    </h4>
-                                                    <p className={`mt-1 text-sm ${notification.isRead ? 'text-gray-500' : 'text-gray-700'}`}>
+                                                <div className="w-full">
+                                                    <div className="flex justify-between items-start">
+                                                        <h4 className={`text-sm font-semibold ${notification.isRead ? 'text-gray-900' : 'text-blue-900'} flex items-center gap-2`}>
+                                                            {notification.title}
+                                                            {notification.link && <ExternalLink className="h-3 w-3 opacity-50" />}
+                                                        </h4>
+                                                        <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">
+                                                            {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                                                        </span>
+                                                    </div>
+                                                    <p className={`mt-1 text-sm ${notification.isRead ? 'text-gray-500' : 'text-gray-700'} line-clamp-2`}>
                                                         {notification.message}
                                                     </p>
-                                                    <p className="mt-2 text-xs text-gray-400 flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" />
-                                                        {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                                                    </p>
+
+                                                    {notification.sender && (
+                                                        <p className="mt-2 text-xs text-gray-400 flex items-center gap-1">
+                                                            From: <span className="font-medium text-gray-600">{notification.sender.name || 'System'}</span>
+                                                            <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] uppercase tracking-wider border border-gray-200">{notification.sender.role || 'Admin'}</span>
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-4 bg-white/80 backdrop-blur-sm p-1 rounded-lg border shadow-sm">
                                             {!notification.isRead && (
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
                                                     onClick={(e) => { e.stopPropagation(); onRead(notification._id); }}
                                                     title="Mark as read"
-                                                    className="h-8 w-8 text-blue-600 hover:bg-blue-100 rounded-full"
+                                                    className="h-7 w-7 text-blue-600 hover:bg-blue-50 rounded"
                                                 >
                                                     <div className="h-2 w-2 rounded-full bg-blue-600"></div>
                                                 </Button>
@@ -96,7 +129,7 @@ function NotificationList({ groups, loading, onDelete, onRead, getIcon }: any) {
                                                 size="icon"
                                                 onClick={(e) => { e.stopPropagation(); onDelete(notification._id); }}
                                                 title="Delete"
-                                                className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full"
+                                                className="h-7 w-7 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
@@ -111,18 +144,6 @@ function NotificationList({ groups, loading, onDelete, onRead, getIcon }: any) {
         </div>
     )
 }
-import { toast } from "sonner"
-import { formatDistanceToNow, isToday, isYesterday } from "date-fns"
-
-interface Notification {
-    _id: string
-    title: string
-    message: string
-    type: 'info' | 'warning' | 'success' | 'error' | 'alert'
-    isRead: boolean
-    createdAt: string
-    link?: string
-}
 
 export default function NotificationsPage({ role }: { role: string }) {
     const [notifications, setNotifications] = useState<Notification[]>([])
@@ -130,32 +151,27 @@ export default function NotificationsPage({ role }: { role: string }) {
     const [unreadCount, setUnreadCount] = useState(0)
     const [activeTab, setActiveTab] = useState("all")
 
+    // Filters
+    const [searchQuery, setSearchQuery] = useState("")
+    const [typeFilter, setTypeFilter] = useState<string[]>(['all']) // all, info, warning, success, error
+
     // Fetch notifications
     const fetchNotifications = async () => {
         try {
             const token = localStorage.getItem('token')
             const targetUrl = `${API_URL}/api/notifications`;
-            // console.log('Fetching notifications from:', targetUrl)
 
             const res = await fetch(targetUrl, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
 
-            const contentType = res.headers.get("content-type");
-            if (contentType && contentType.indexOf("application/json") !== -1) {
+            if (res.ok) {
                 const data = await res.json()
-                if (res.ok) {
-                    setNotifications(data.notifications)
-                    setUnreadCount(data.unreadCount)
-                } else {
-                    console.error("Failed to fetch notifications:", data.error)
-                }
-            } else {
-                const text = await res.text();
-                console.error(`Received non-JSON response from API at ${targetUrl}. Status: ${res.status}. Body preview: ${text.substring(0, 100)}`);
+                setNotifications(data.notifications || [])
+                setUnreadCount(data.unreadCount || 0)
             }
         } catch (error) {
-            console.error("Error fetching notifications. Is the backend server running?", error)
+            console.error("Error fetching notifications", error)
         } finally {
             setLoading(false)
         }
@@ -168,20 +184,14 @@ export default function NotificationsPage({ role }: { role: string }) {
     const handleMarkAsRead = async (id: string) => {
         try {
             const token = localStorage.getItem('token')
-
             const res = await fetch(`${API_URL}/api/notifications/${id}/read`, {
                 method: 'PUT',
                 headers: { 'Authorization': `Bearer ${token}` }
             })
 
-            const contentType = res.headers.get("content-type");
-            if (contentType && contentType.indexOf("application/json") !== -1 || res.ok) {
-                if (res.ok) {
-                    setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n))
-                    setUnreadCount(prev => Math.max(0, prev - 1))
-                }
-            } else {
-                console.error('Non-JSON response for mark read')
+            if (res.ok) {
+                setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n))
+                setUnreadCount(prev => Math.max(0, prev - 1))
             }
         } catch (error) {
             console.error(error)
@@ -192,21 +202,15 @@ export default function NotificationsPage({ role }: { role: string }) {
     const handleMarkAllRead = async () => {
         try {
             const token = localStorage.getItem('token')
-
             const res = await fetch(`${API_URL}/api/notifications/mark-all-read`, {
                 method: 'PUT',
                 headers: { 'Authorization': `Bearer ${token}` }
             })
 
-            const contentType = res.headers.get("content-type");
-            if (contentType && contentType.indexOf("application/json") !== -1 || res.ok) {
-                if (res.ok) {
-                    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
-                    setUnreadCount(0)
-                    toast.success("All notifications marked as read")
-                }
-            } else {
-                console.error('Non-JSON response for mark all read')
+            if (res.ok) {
+                setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
+                setUnreadCount(0)
+                toast.success("All notifications marked as read")
             }
         } catch (error) {
             console.error(error)
@@ -217,7 +221,6 @@ export default function NotificationsPage({ role }: { role: string }) {
     const handleDelete = async (id: string) => {
         try {
             const token = localStorage.getItem('token')
-
             const res = await fetch(`${API_URL}/api/notifications/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -226,10 +229,33 @@ export default function NotificationsPage({ role }: { role: string }) {
             if (res.ok) {
                 setNotifications(prev => prev.filter(n => n._id !== id))
                 toast.success("Notification deleted")
+                // Re-calc unread count if we deleted an unread one
+                // Ideally backend should return new count, but we can approx
             }
         } catch (error) {
             console.error(error)
             toast.error("Failed to delete notification")
+        }
+    }
+
+    const handleClearAll = async () => {
+        if (!confirm("Are you sure you want to delete ALL notifications?")) return;
+
+        try {
+            const token = localStorage.getItem('token')
+            const res = await fetch(`${API_URL}/api/notifications/clear-all`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+
+            if (res.ok) {
+                setNotifications([])
+                setUnreadCount(0)
+                toast.success("All notifications cleared")
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error("Failed to clear notifications")
         }
     }
 
@@ -244,11 +270,28 @@ export default function NotificationsPage({ role }: { role: string }) {
     }
 
     const getFilteredNotifications = () => {
-        switch (activeTab) {
-            case 'unread': return notifications.filter(n => !n.isRead);
-            case 'archived': return []; // Placeholder if we had archived state
-            default: return notifications;
+        let filtered = notifications;
+
+        // Tab filter
+        if (activeTab === 'unread') {
+            filtered = filtered.filter(n => !n.isRead);
         }
+
+        // Type filter
+        if (!typeFilter.includes('all')) {
+            filtered = filtered.filter(n => typeFilter.includes(n.type));
+        }
+
+        // Search filter
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(n =>
+                n.title.toLowerCase().includes(q) ||
+                n.message.toLowerCase().includes(q)
+            );
+        }
+
+        return filtered;
     }
 
     const groupNotifications = (notifs: Notification[]) => {
@@ -271,49 +314,115 @@ export default function NotificationsPage({ role }: { role: string }) {
     const filtered = getFilteredNotifications();
     const grouped = groupNotifications(filtered);
 
+    // Calculate counts for filters
+    const getTypeCount = (type: string) => notifications.filter(n => type === 'all' ? true : n.type === type).length;
+
     return (
         <DashboardLayout title="Notifications">
-            <div className="space-y-6 max-w-5xl mx-auto p-2">
+            <div className="space-y-6 max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
                         <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">Notifications</h2>
                         <p className="text-muted-foreground mt-1 flex items-center gap-2">
                             <Bell className="h-4 w-4" />
-                            You have {unreadCount} unread notifications
+                            {unreadCount > 0 ? `You have ${unreadCount} unread notifications` : 'No new notifications'}
                         </p>
                     </div>
-                    {unreadCount > 0 && (
-                        <Button onClick={handleMarkAllRead} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 shadow-sm transition-all hover:scale-105">
-                            <Check className="h-4 w-4" /> Mark all read
-                        </Button>
-                    )}
+                    <div className="flex gap-2">
+                        {unreadCount > 0 && (
+                            <Button onClick={handleMarkAllRead} variant="outline" className="flex items-center gap-2">
+                                <Check className="h-4 w-4" /> Mark all read
+                            </Button>
+                        )}
+                        {notifications.length > 0 && (
+                            <Button onClick={handleClearAll} variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50 flex items-center gap-2">
+                                <Trash2 className="h-4 w-4" /> Clear all
+                            </Button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-4 items-center justify-between sticky top-0 z-10 bg-white/80 backdrop-blur-md p-2 rounded-lg border shadow-sm">
+                    <div className="relative w-full md:w-96">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                            placeholder="Search notifications..."
+                            className="pl-9 bg-white"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery("")}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="flex gap-2 w-full md:w-auto">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="gap-2 w-full md:w-auto">
+                                    <Filter className="h-4 w-4" />
+                                    Filter by Type
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel>Notification Types</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuCheckboxItem
+                                    checked={typeFilter.includes('all')}
+                                    onCheckedChange={() => setTypeFilter(['all'])}
+                                >
+                                    All Types ({notifications.length})
+                                </DropdownMenuCheckboxItem>
+                                {['info', 'success', 'warning', 'error', 'alert'].map(type => (
+                                    <DropdownMenuCheckboxItem
+                                        key={type}
+                                        checked={typeFilter.includes(type) && !typeFilter.includes('all')}
+                                        onCheckedChange={(checked) => {
+                                            if (checked) {
+                                                setTypeFilter(prev => prev.filter(t => t !== 'all').concat(type))
+                                            } else {
+                                                const newFilters = typeFilter.filter(t => t !== type);
+                                                setTypeFilter(newFilters.length ? newFilters : ['all'])
+                                            }
+                                        }}
+                                        className="capitalize"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {getIcon(type)}
+                                            {type}
+                                            <span className="ml-auto text-xs text-muted-foreground">({getTypeCount(type)})</span>
+                                        </div>
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
 
                 <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
-                    <div className="flex items-center justify-between mb-4">
-                        <TabsList className="bg-gray-100/80 p-1">
-                            <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">All</TabsTrigger>
-                            <TabsTrigger value="unread" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                                Unread
-                                {unreadCount > 0 && <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-600 rounded-full">{unreadCount}</span>}
-                            </TabsTrigger>
-                        </TabsList>
+                    <TabsList className="bg-gray-100/80 p-1 w-full justify-start">
+                        <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-6">All</TabsTrigger>
+                        <TabsTrigger value="unread" className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-6">
+                            Unread
+                            {unreadCount > 0 && <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-600 rounded-full">{unreadCount}</span>}
+                        </TabsTrigger>
+                    </TabsList>
 
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Filter className="h-4 w-4" /> Filter
-                        </div>
+                    <div className="mt-6">
+                        <TabsContent value="all" className="m-0">
+                            <NotificationList groups={grouped} loading={loading} onDelete={handleDelete} onRead={handleMarkAsRead} getIcon={getIcon} />
+                        </TabsContent>
+                        <TabsContent value="unread" className="m-0">
+                            <NotificationList groups={grouped} loading={loading} onDelete={handleDelete} onRead={handleMarkAsRead} getIcon={getIcon} />
+                        </TabsContent>
                     </div>
-
-                    <TabsContent value="all">
-                        <NotificationList groups={grouped} loading={loading} onDelete={handleDelete} onRead={handleMarkAsRead} getIcon={getIcon} />
-                    </TabsContent>
-                    <TabsContent value="unread">
-                        <NotificationList groups={grouped} loading={loading} onDelete={handleDelete} onRead={handleMarkAsRead} getIcon={getIcon} />
-                    </TabsContent>
                 </Tabs>
             </div>
         </DashboardLayout>
     )
 }
-
-
