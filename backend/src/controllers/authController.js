@@ -116,7 +116,7 @@ exports.schoolLogin = async (req, res) => {
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role, schoolId: user.schoolId?._id },
       process.env.JWT_SECRET || 'fallback_secret_for_development_only',
-      { expiresIn: '24h' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
     );
 
     res.json({
@@ -224,7 +224,7 @@ exports.login = async (req, res) => {
     const token = jwt.sign(
       tokenPayload,
       process.env.JWT_SECRET || 'fallback_secret_for_development_only',
-      { expiresIn: '24h' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
     );
 
     console.log('✅ Login successful for:', email);

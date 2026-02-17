@@ -39,14 +39,16 @@ import { ConfirmationDialog } from "@/components/super-admin/confirmation-dialog
 
 interface ClassItem {
     _id: string
-    className: string
+    name: string
+    section: string
 }
 
 interface ReferralItem {
     _id: string
     classId: {
         _id: string
-        className: string
+        name: string
+        section: string
     }
     amount: number
     description?: string
@@ -75,10 +77,25 @@ export default function ReferralSettingPage() {
         try {
             setLoading(true)
             const token = localStorage.getItem("token")
+
+            if (!token) {
+                window.location.href = "/"
+                return
+            }
+
             const [refRes, clsRes] = await Promise.all([
                 fetch(`${API_URL}/api/referral-settings`, { headers: { "Authorization": `Bearer ${token}` } }),
                 fetch(`${API_URL}/api/classes`, { headers: { "Authorization": `Bearer ${token}` } })
             ])
+
+            if (refRes.status === 401 || refRes.status === 403 || clsRes.status === 401 || clsRes.status === 403) {
+                localStorage.removeItem("token")
+                localStorage.removeItem("user")
+                toast.error("Session expired. Please log in again.")
+                setTimeout(() => window.location.href = "/", 1500)
+                return
+            }
+
             const refData = await refRes.json()
             const clsData = await clsRes.json()
 
@@ -164,7 +181,8 @@ export default function ReferralSettingPage() {
     }
 
     const filteredReferrals = referrals.filter(item =>
-        item.classId.className.toLowerCase().includes(searchTerm.toLowerCase())
+        item.classId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.classId?.section?.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
     return (
@@ -218,7 +236,7 @@ export default function ReferralSettingPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     {classes.map(cls => (
-                                        <SelectItem key={cls._id} value={cls._id}>{cls.className}</SelectItem>
+                                        <SelectItem key={cls._id} value={cls._id}>{cls.name} - {cls.section}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -303,7 +321,7 @@ export default function ReferralSettingPage() {
                                             <TableRow key={item._id} className="hover:bg-muted/10 transition-colors">
                                                 <TableCell className="font-medium py-4 pl-6">
                                                     <span className="px-2 py-1 rounded bg-blue-50 text-blue-700 text-xs font-bold uppercase border border-blue-100">
-                                                        {item.classId.className}
+                                                        {item.classId?.name} - {item.classId?.section}
                                                     </span>
                                                 </TableCell>
                                                 <TableCell className="font-bold text-green-600">₹{item.amount.toLocaleString()}</TableCell>

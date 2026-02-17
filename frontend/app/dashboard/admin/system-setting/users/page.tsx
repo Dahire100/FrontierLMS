@@ -91,9 +91,16 @@ export default function UsersPage() {
     const fetchClasses = async () => {
         try {
             const token = localStorage.getItem("token")
+            if (!token) return
+
             const response = await fetch(`${API_URL}/api/classes`, {
                 headers: { "Authorization": `Bearer ${token}` }
             })
+
+            if (response.status === 401 || response.status === 403) {
+                return // handled by fetchUsers or main effect
+            }
+
             const data = await response.json()
             if (Array.isArray(data)) setClasses(data)
         } catch (error) {
@@ -105,6 +112,12 @@ export default function UsersPage() {
         try {
             setLoading(true)
             const token = localStorage.getItem("token")
+
+            if (!token) {
+                window.location.href = "/"
+                return
+            }
+
             let url = `${API_URL}/api/user-management?role=${currentTab}`
             if (selectedClass !== "all") url += `&classId=${selectedClass}`
             if (selectedSection !== "all") url += `&section=${selectedSection}`
@@ -113,6 +126,15 @@ export default function UsersPage() {
             const response = await fetch(url, {
                 headers: { "Authorization": `Bearer ${token}` }
             })
+
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem("token")
+                localStorage.removeItem("user")
+                toast.error("Session expired. Please log in again.")
+                setTimeout(() => window.location.href = "/", 1500)
+                return
+            }
+
             const data = await response.json()
             if (Array.isArray(data)) {
                 setUsers(data)

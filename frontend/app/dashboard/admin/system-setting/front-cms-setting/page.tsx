@@ -47,9 +47,24 @@ export default function FrontCMSSettingPage() {
         try {
             setLoading(true)
             const token = localStorage.getItem("token")
+
+            if (!token) {
+                window.location.href = "/"
+                return
+            }
+
             const response = await fetch(`${API_URL}/api/front-cms/settings`, {
                 headers: { "Authorization": `Bearer ${token}` }
             })
+
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem("token")
+                localStorage.removeItem("user")
+                toast.error("Session expired. Please log in again.")
+                setTimeout(() => window.location.href = "/", 1500)
+                return
+            }
+
             const result = await response.json()
             if (result.success && result.data) {
                 setSettings((prev: any) => ({ ...prev, ...result.data }))

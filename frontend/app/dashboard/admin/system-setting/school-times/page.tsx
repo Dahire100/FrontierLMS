@@ -45,7 +45,8 @@ import { ActionMenu } from "@/components/action-menu"
 
 interface ClassItem {
     _id: string
-    className: string
+    name: string
+    section: string
 }
 
 interface SchoolTimeItem {
@@ -54,7 +55,8 @@ interface SchoolTimeItem {
     period: string
     classId: {
         _id: string
-        className: string
+        name: string
+        section: string
     }
     startTime: string
     endTime: string
@@ -86,11 +88,26 @@ export default function SchoolTimesPage() {
     const fetchData = async () => {
         setLoading(true)
         const token = localStorage.getItem("token")
+
+        if (!token) {
+            window.location.href = "/"
+            return
+        }
+
         try {
             const [timesRes, classesRes] = await Promise.all([
                 fetch(`${API_URL}/api/school-times`, { headers: { "Authorization": `Bearer ${token}` } }),
                 fetch(`${API_URL}/api/classes`, { headers: { "Authorization": `Bearer ${token}` } })
             ])
+
+            if (timesRes.status === 401 || timesRes.status === 403 || classesRes.status === 401 || classesRes.status === 403) {
+                localStorage.removeItem("token")
+                localStorage.removeItem("user")
+                toast.error("Session expired. Please log in again.")
+                setTimeout(() => window.location.href = "/", 1500)
+                return
+            }
+
             const timesData = await timesRes.json()
             const classesData = await classesRes.json()
 
@@ -186,7 +203,7 @@ export default function SchoolTimesPage() {
     }
 
     const filteredTimes = times.filter(item => {
-        const className = item.classId?.className?.toLowerCase() || "";
+        const className = item.classId?.name?.toLowerCase() || "";
         const period = item.period?.toLowerCase() || "";
         const search = searchTerm.toLowerCase();
 
@@ -229,7 +246,7 @@ export default function SchoolTimesPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {classes.map(cls => (
-                                            <SelectItem key={cls._id} value={cls._id}>{cls.className}</SelectItem>
+                                            <SelectItem key={cls._id} value={cls._id}>{cls.name} - {cls.section}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -370,7 +387,7 @@ export default function SchoolTimesPage() {
                                                     </TableCell>
                                                     <TableCell>
                                                         <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold uppercase">
-                                                            {item.classId?.className || "Unknown Class"}
+                                                            {item.classId?.name ? `${item.classId.name} - ${item.classId.section}` : "Unknown Class"}
                                                         </span>
                                                     </TableCell>
                                                     <TableCell className="text-center">

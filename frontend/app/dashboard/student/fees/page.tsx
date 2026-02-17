@@ -56,8 +56,70 @@ export default function StudentFees() {
         receipt: f.receiptNumber || "RCP-MISSING"
     }))
 
-    const handlePayNow = (amount: number, feeTitle: string) => {
-        toast.success("Payment Initiated", { description: `Redirecting to payment gateway for ${feeTitle} (₹${amount})...` })
+    const handlePayNow = async (amount: number, feeTitle: string) => {
+        try {
+            setLoading(true)
+            toast.loading("Initiating Paytm transaction...")
+
+            const token = localStorage.getItem('token')
+            const orderId = `ORDER_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+            const customerId = `CUST_${Date.now()}` // In real app, use actual user ID
+
+            // 1. Get Transaction Token from Backend
+            const res = await fetch(`${API_URL}/api/payment/initiate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    amount: amount,
+                    orderId: orderId,
+                    customerId: customerId,
+                    feeTitle: feeTitle
+                })
+            })
+
+            const data = await res.json()
+
+            if (data.success && data.txnToken) {
+                // 2. Create Form and Submit to Paytm
+                // Staging URL: https://securegw-stage.paytm.in/theia/api/v1/showPaymentPage
+                // Production URL: https://securegw.paytm.in/theia/api/v1/showPaymentPage
+
+                const form = document.createElement('form')
+                form.method = 'POST'
+                form.action = `https://securegw-stage.paytm.in/theia/api/v1/showPaymentPage?mid=${data.mid}&orderId=${data.orderId}`
+
+                const midInput = document.createElement('input')
+                midInput.name = 'mid'
+                midInput.value = data.mid
+                form.appendChild(midInput)
+
+                const orderInput = document.createElement('input')
+                orderInput.name = 'orderId'
+                orderInput.value = data.orderId
+                form.appendChild(orderInput)
+
+                const txnTokenInput = document.createElement('input')
+                txnTokenInput.name = 'txnToken'
+                txnTokenInput.value = data.txnToken
+                form.appendChild(txnTokenInput)
+
+                document.body.appendChild(form)
+                form.submit()
+
+            } else {
+                toast.error("Failed to initiate payment: " + (data.error || "Unknown error"))
+            }
+
+        } catch (error) {
+            console.error(error)
+            toast.error("Payment Error")
+        } finally {
+            setLoading(false)
+            toast.dismiss()
+        }
     }
 
     const generateReceipt = (fee: any) => {

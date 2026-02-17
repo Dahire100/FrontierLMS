@@ -60,7 +60,11 @@ export default function StudentWallet() {
     setProcessing(true)
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch(`${API_URL}/api/wallet/recharge`, {
+      const orderId = `WALLET_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+      const customerId = `USER_${Date.now()}`
+
+      // 1. Initiate Transaction
+      const res = await fetch(`${API_URL}/api/payment/initiate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,21 +72,39 @@ export default function StudentWallet() {
         },
         body: JSON.stringify({
           amount: parseFloat(amount),
-          description: "Online Top-up",
-          referenceId: `REF-${Date.now()}` // Simulated payment ref
+          orderId: orderId,
+          customerId: customerId,
+          description: "Wallet Recharge"
         })
       })
 
       const data = await res.json()
 
-      if (res.ok) {
-        toast.success("Wallet Recharged", { description: `Successfully added ₹${amount}` })
-        setBalance(data.newBalance)
-        setIsAddMoneyOpen(false)
-        setAmount("")
-        fetchWalletData() // Refresh transactions
+      if (data.success && data.txnToken) {
+        // 2. Submit to Paytm
+        const form = document.createElement('form')
+        form.method = 'POST'
+        form.action = `https://securegw-stage.paytm.in/theia/api/v1/showPaymentPage?mid=${data.mid}&orderId=${data.orderId}`
+
+        const midInput = document.createElement('input')
+        midInput.name = 'mid'
+        midInput.value = data.mid
+        form.appendChild(midInput)
+
+        const orderInput = document.createElement('input')
+        orderInput.name = 'orderId'
+        orderInput.value = data.orderId
+        form.appendChild(orderInput)
+
+        const txnTokenInput = document.createElement('input')
+        txnTokenInput.name = 'txnToken'
+        txnTokenInput.value = data.txnToken
+        form.appendChild(txnTokenInput)
+
+        document.body.appendChild(form)
+        form.submit()
       } else {
-        toast.error(data.error || "Recharge failed")
+        toast.error(data.error || "Recharge init failed")
       }
     } catch (error) {
       console.error("Recharge error", error)

@@ -248,6 +248,7 @@ app.use('/api/notifications', notificationRoutes);
 
 // New modules - Wallet
 app.use('/api/wallet', walletRoutes);
+app.use('/api/payment', require('./src/routes/payment'));
 
 // Fees Collection sub-modules
 app.use('/api/fees/cheques', chequeRoutes);
