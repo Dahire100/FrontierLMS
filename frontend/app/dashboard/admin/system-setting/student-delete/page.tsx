@@ -58,10 +58,25 @@ export default function StudentDeletePage() {
         try {
             setLoading(true)
             const token = localStorage.getItem("token")
+
+            if (!token) {
+                window.location.href = "/"
+                return
+            }
+
             // Fetch deleted students
             const response = await fetch(`${API_URL}/api/students/deleted-list`, {
                 headers: { "Authorization": `Bearer ${token}` }
             })
+
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem("token")
+                localStorage.removeItem("user")
+                toast.error("Session expired. Please log in again.")
+                setTimeout(() => window.location.href = "/", 1500)
+                return
+            }
+
             const data = await response.json()
             if (Array.isArray(data)) {
                 setStudents(data)

@@ -98,10 +98,24 @@ export default function CommunicationSettingPage() {
         try {
             setLoading(true)
             const token = localStorage.getItem("token")
+
+            if (!token) {
+                window.location.href = "/"
+                return
+            }
+
             const [settingsRes, staffRes] = await Promise.all([
                 fetch(`${API_URL}/api/system-setting`, { headers: { "Authorization": `Bearer ${token}` } }),
                 fetch(`${API_URL}/api/staff?limit=1000`, { headers: { "Authorization": `Bearer ${token}` } })
             ])
+
+            if (settingsRes.status === 401 || settingsRes.status === 403 || staffRes.status === 401 || staffRes.status === 403) {
+                localStorage.removeItem("token")
+                localStorage.removeItem("user")
+                toast.error("Session expired. Please log in again.")
+                setTimeout(() => window.location.href = "/", 1500)
+                return
+            }
 
             const sData = await settingsRes.json()
             const stData = await staffRes.json()
