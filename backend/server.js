@@ -9,14 +9,37 @@ const { seedDatabase } = require('./src/config/seed');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// CORS configuration - restrict origins in production
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production'
+    ? allowedOrigins
+    : true, // Allow all origins in development
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Initialize database
-initDB();
+// Initialize database and seed
+const startDB = async () => {
+  try {
+    await initDB();
+    await seedDatabase();
+  } catch (error) {
+    console.error('❌ Database initialization error:', error.message);
+    // Don't crash — allow health check to report status
+  }
+};
+startDB();
 
 // Import routes
 const authRoutes = require('./src/routes/auth');
@@ -290,46 +313,18 @@ app.use('/api/sales-enquiry', (req, res, next) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
+  const { getConnectionStatus } = require('./src/config/db');
+  const dbConnected = getConnectionStatus();
+  
+  const statusCode = dbConnected ? 200 : 503;
+  
+  res.status(statusCode).json({
+    status: dbConnected ? 'OK' : 'DEGRADED',
     message: 'Frontier ERP Backend is running',
+    database: dbConnected ? 'connected' : 'disconnected',
+    environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString(),
-    routes: [
-      '/api/auth/login',
-      '/api/otp/send-otp',
-      '/api/otp/verify-otp',
-      '/api/schools/register',
-      '/api/students',
-      '/api/teachers',
-      '/api/fees',
-      '/api/transport',
-      '/api/attendance',
-      '/api/exams',
-      '/api/dashboard',
-      '/api/classes',
-      '/api/subjects',
-      '/api/homework',
-      '/api/notices',
-      '/api/expenses',
-      '/api/income',
-      '/api/timetable',
-      '/api/library',
-      '/api/hostel',
-      '/api/teacher',
-      '/api/parent',
-      '/api/messages',
-      '/api/online-classes',
-      '/api/leave-requests',
-      '/api/leave-requests',
-      '/api/student',
-      '/api/cms',
-      '/api/subscription',
-      '/api/consent-letter',
-      '/api/disciplinary',
-      '/api/lesson-planner',
-      '/api/quiz',
-      '/api/study-material'
-    ]
+    uptime: process.uptime(),
   });
 });
 

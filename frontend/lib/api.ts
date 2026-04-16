@@ -25,7 +25,7 @@ export async function apiCall<T>(
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        window.location.href = '/';
       }
     }
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));

@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+database.sqlite
+src/database.sqlite
+uploads/*
+!uploads/.gitkeep
+*.md
+check_*.js
+debug_*.js
+fixUserRoles.js
+database-json.js

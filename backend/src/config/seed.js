@@ -62,28 +62,58 @@ const seedDatabase = async () => {
     if (schoolCount === 0) {
       const sampleSchools = [
         {
-          name: 'Frontier Public School',
-          address: '123 Education Street, City',
-          phone: '+1234567890',
+          schoolName: 'Frontier Public School',
+          address: '123 Education Street',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          country: 'India',
+          pinCode: '400001',
+          contactNumber: '+1234567890',
           email: 'contact@frontierschool.com',
           principalName: 'Dr. John Smith',
-          status: 'active'
+          principalEmail: 'john.smith@frontierschool.com',
+          principalPhone: '+1234567891',
+          schoolType: 'Private',
+          boardType: 'CBSE',
+          establishmentYear: '2010',
+          description: 'A premier educational institution',
+          status: 'approved'
         },
         {
-          name: 'Excellence Academy',
-          address: '456 Learning Avenue, City',
-          phone: '+9876543210',
+          schoolName: 'Excellence Academy',
+          address: '456 Learning Avenue',
+          city: 'Delhi',
+          state: 'Delhi',
+          country: 'India',
+          pinCode: '110001',
+          contactNumber: '+9876543210',
           email: 'info@excellenceacademy.com',
           principalName: 'Ms. Sarah Johnson',
-          status: 'active'
+          principalEmail: 'sarah.j@excellenceacademy.com',
+          principalPhone: '+9876543211',
+          schoolType: 'Private',
+          boardType: 'ICSE',
+          establishmentYear: '2015',
+          description: 'Excellence in education since 2015',
+          status: 'approved'
         },
         {
-          name: 'Global Institute',
-          address: '789 Knowledge Lane, City',
-          phone: '+5555555555',
+          schoolName: 'Global Institute',
+          address: '789 Knowledge Lane',
+          city: 'Bangalore',
+          state: 'Karnataka',
+          country: 'India',
+          pinCode: '560001',
+          contactNumber: '+5555555555',
           email: 'hello@globalinstitute.com',
           principalName: 'Prof. Michael Brown',
-          status: 'active'
+          principalEmail: 'michael.b@globalinstitute.com',
+          principalPhone: '+5555555556',
+          schoolType: 'International',
+          boardType: 'IB',
+          establishmentYear: '2018',
+          description: 'Global standards, local values',
+          status: 'approved'
         }
       ];
       await School.insertMany(sampleSchools);

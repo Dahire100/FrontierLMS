@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 
+let isConnected = false;
+
 const connectDB = async () => {
   try {
     console.log("DEBUG: Loading MONGO_URI...");
@@ -9,33 +11,36 @@ const connectDB = async () => {
     console.log("DEBUG: Using URI:", uri.replace(/:[^:]*@/, ':****@')); // Mask password
 
     const conn = await mongoose.connect(uri, {
-      // These options are no longer needed in Mongoose 6+, but keeping for reference if using older versions
-      // useNewUrlParser: true,
-      // useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000, // 10 second timeout
+      socketTimeoutMS: 45000,
     });
 
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    isConnected = true;
+    console.log(`\u2705 MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error(`❌ Error: ${error.message}`);
-    process.exit(1);
+    console.error(`\u274c MongoDB connection error: ${error.message}`);
+    isConnected = false;
+    // Don't crash the server — allow health check to report the issue
+    // Retry logic can be added here if needed
   }
 };
 
-// Placeholder for initDB to maintain compatibility with server.js calls
-// In MongoDB, we don't need to explicitly create tables
+// Handle MongoDB disconnection events
+mongoose.connection.on('disconnected', () => {
+  console.warn('\u26a0\ufe0f MongoDB disconnected. Attempting to reconnect...');
+  isConnected = false;
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('\u2705 MongoDB reconnected successfully');
+  isConnected = true;
+});
+
 const initDB = async () => {
-  console.log('🔄 MongoDB initialized (Schema validation handled by Mongoose)');
+  console.log('\ud83d\udd04 MongoDB initializing (Schema validation handled by Mongoose)');
   await connectDB();
 };
 
-// Export db object to maintain compatibility with existing controllers temporarily
-// This allows us to migrate controllers one by one
-const db = {
-  // Helper to bridge SQLite calls to Mongoose during migration
-  // This is a temporary shim
-  get: () => { console.error('❌ db.get called - Migrate to Mongoose model!'); },
-  run: () => { console.error('❌ db.run called - Migrate to Mongoose model!'); },
-  all: () => { console.error('❌ db.all called - Migrate to Mongoose model!'); }
-};
+const getConnectionStatus = () => isConnected;
 
-module.exports = { db, initDB, connectDB };
+module.exports = { initDB, connectDB, getConnectionStatus };

@@ -51,8 +51,8 @@ exports.sendLoginOTP = async (req, res) => {
         res.json({
             success: true,
             message: 'OTP sent successfully to your email',
-            // In development mode, include OTP in response if email failed
-            devOTP: otpCode // ALWAYS send OTP for testing purposes
+            // Only return OTP in development mode for testing
+            ...(process.env.NODE_ENV !== 'production' && { devOTP: otpCode })
         });
 
     } catch (error) {
