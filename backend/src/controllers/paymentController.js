@@ -115,7 +115,8 @@ exports.handleCallback = async (req, res) => {
 
     // For now, simpler for frontend to verify status independently or listen to this
     // We can redirect user to frontend success/failure page
-    res.redirect(`http://localhost:3000/dashboard/student/fees/status?orderId=${req.body.ORDERID}`);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    res.redirect(`${frontendUrl}/dashboard/student/fees/status?orderId=${req.body.ORDERID}`);
 };
 
 /*
