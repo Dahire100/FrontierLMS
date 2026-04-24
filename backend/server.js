@@ -6,6 +6,44 @@ const cors = require('cors');
 const { initDB } = require('./src/config/db');
 const { seedDatabase } = require('./src/config/seed');
 
+const promClient = require('prom-client');
+const winston = require('winston');
+const LokiTransport = require('winston-loki');
+
+// Setup Prometheus Metrics
+const collectDefaultMetrics = promClient.collectDefaultMetrics;
+const Registry = promClient.Registry;
+const register = new Registry();
+collectDefaultMetrics({ register });
+
+const httpRequestDurationMicroseconds = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10]
+});
+register.registerMetric(httpRequestDurationMicroseconds);
+
+// Setup Winston Logger with Loki
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console(),
+    ...(process.env.LOKI_HOST ? [new LokiTransport({
+      host: process.env.LOKI_HOST, // e.g., 'http://127.0.0.1:3100' or Render Loki endpoint
+      labels: { app: 'frontier-lms-backend' },
+      json: true,
+      format: winston.format.json(),
+      replaceTimestamp: true,
+      onConnectionError: (err) => console.error('Loki transport connection error:', err)
+    })] : [])
+  ]
+});
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -168,8 +206,31 @@ const salesEnquiryRoutes = require('./src/routes/salesEnquiry');
 
 // Debug logger for ALL requests
 app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    
+    // Log to Winston/Loki
+    logger.info(`[${req.method}] ${req.originalUrl} - ${res.statusCode} - ${duration}s`, {
+      method: req.method,
+      url: req.originalUrl,
+      status: res.statusCode,
+      duration
+    });
+
+    // Record Prometheus metric
+    httpRequestDurationMicroseconds
+      .labels(req.method, req.route ? req.route.path : req.originalUrl, res.statusCode)
+      .observe(duration);
+  });
   console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
+});
+
+// Metrics endpoint for Prometheus
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 // Use routes
